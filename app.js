@@ -419,21 +419,24 @@ function viewClassDetail(classId, className) {
     attendanceListUl.innerHTML = '<li class="loading-placeholder">Chọn ngày để xem điểm danh...</li>'; // Reset điểm danh
     clearErrors();
     showView('class-detail-view');
-    loadStudents(classId); // Tải danh sách học sinh (cần cho cả quản lý HS và điểm danh)
 
-    // Khởi tạo và xử lý điểm danh (MỚI)
-    initializeAttendance();
+    // Khởi tạo và xử lý điểm danh TRƯỚC khi gọi loadStudents
+    initializeAttendance(); // Đảm bảo ngày được đặt và listener được gắn
+
+    loadStudents(classId); // Tải danh sách học sinh (sẽ gọi loadAttendance sau)
 }
 
 function loadStudents(classId) {
     if (!currentUser || !classId) return;
     if (unsubscribeStudents) unsubscribeStudents();
+    console.log("[DEBUG] Bắt đầu loadStudents cho lớp:", classId); // DEBUG LOG
 
     unsubscribeStudents = db.collection('users').doc(currentUser.uid)
                           .collection('classes').doc(classId)
                           .collection('students')
                           .orderBy('name', 'asc')
                           .onSnapshot(snapshot => {
+        console.log("[DEBUG] Nhận snapshot học sinh:", snapshot.size, "học sinh"); // DEBUG LOG
         studentListUl.innerHTML = ''; // Xóa list quản lý học sinh
         // Lưu danh sách học sinh để dùng cho điểm danh
         const students = [];
@@ -449,11 +452,12 @@ function loadStudents(classId) {
         }
         // Sau khi tải xong danh sách học sinh, tải điểm danh cho ngày hiện tại (hoặc ngày đang chọn)
         const selectedDate = attendanceDateInput.value || getCurrentDateString();
+        console.log("[DEBUG] Gọi loadAttendance từ loadStudents với ngày:", selectedDate, "và", students.length, "học sinh"); // DEBUG LOG
         loadAttendance(classId, selectedDate, students); // Truyền danh sách học sinh vào
 
         console.log(`Đã tải và hiển thị danh sách học sinh cho lớp ${classId}.`);
     }, error => {
-        console.error(`Lỗi tải danh sách học sinh cho lớp ${classId}: `, error);
+        console.error(`Lỗi tải danh sách học sinh cho lớp ${classId}: `, error); // DEBUG LOG
         displayError(studentError, `Lỗi tải học sinh: ${error.message}`);
         studentListUl.innerHTML = '<li class="loading-placeholder">Có lỗi xảy ra khi tải danh sách học sinh.</li>';
         attendanceListUl.innerHTML = '<li class="loading-placeholder">Lỗi tải danh sách học sinh, không thể điểm danh.</li>'; // Cập nhật list điểm danh
@@ -627,6 +631,7 @@ addStudentForm.addEventListener('submit', (e) => {
  * Khởi tạo phần điểm danh: đặt ngày mặc định và thêm event listener.
  */
 function initializeAttendance() {
+    console.log("[DEBUG] Khởi tạo điểm danh"); // DEBUG LOG
     attendanceDateInput.value = getCurrentDateString(); // Đặt ngày hiện tại làm mặc định
     // Xóa event listener cũ nếu có để tránh bị gọi nhiều lần
     attendanceDateInput.removeEventListener('change', handleDateChange);
@@ -642,7 +647,7 @@ function handleDateChange() {
     if (!currentClassId) return;
     const selectedDate = attendanceDateInput.value;
     if (selectedDate) {
-        console.log("Ngày điểm danh thay đổi:", selectedDate);
+        console.log("[DEBUG] Ngày điểm danh thay đổi:", selectedDate); // DEBUG LOG
         attendanceListUl.innerHTML = '<li class="loading-placeholder">Đang tải điểm danh...</li>';
          // Cần lấy lại danh sách học sinh hiện tại để truyền vào loadAttendance
          db.collection('users').doc(currentUser.uid)
@@ -651,10 +656,11 @@ function handleDateChange() {
            .orderBy('name', 'asc').get()
            .then(snapshot => {
                const students = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+               console.log("[DEBUG] Lấy lại học sinh khi đổi ngày:", students.length, "học sinh"); // DEBUG LOG
                loadAttendance(currentClassId, selectedDate, students);
            })
            .catch(error => {
-               console.error("Lỗi lấy lại danh sách học sinh khi đổi ngày:", error);
+               console.error("Lỗi lấy lại danh sách học sinh khi đổi ngày:", error); // DEBUG LOG
                displayError(attendanceError, `Lỗi tải lại học sinh: ${error.message}`);
                attendanceListUl.innerHTML = '<li class="loading-placeholder">Lỗi tải danh sách học sinh.</li>';
            });
@@ -670,10 +676,11 @@ function handleDateChange() {
  */
 async function loadAttendance(classId, dateString, students) {
     if (!currentUser || !classId || !dateString || !students) {
+         console.warn("[DEBUG] Thiếu thông tin để tải điểm danh:", { classId, dateString, students }); // DEBUG LOG
          attendanceListUl.innerHTML = '<li class="loading-placeholder">Thiếu thông tin để tải điểm danh.</li>';
          return;
     }
-    console.log(`Tải điểm danh cho lớp ${classId}, ngày ${dateString}`);
+    console.log(`[DEBUG] Bắt đầu loadAttendance cho lớp ${classId}, ngày ${dateString}`); // DEBUG LOG
     attendanceListUl.innerHTML = ''; // Xóa danh sách cũ
     clearErrors(); // Xóa lỗi cũ
 
@@ -684,24 +691,28 @@ async function loadAttendance(classId, dateString, students) {
 
     try {
         const attendanceDoc = await attendanceDocRef.get();
+        console.log(`[DEBUG] Attendance doc exists for ${dateString}?`, attendanceDoc.exists); // DEBUG LOG
         const attendanceData = attendanceDoc.exists ? attendanceDoc.data() : { absentStudents: {} };
-        const absentStudentsMap = attendanceData.absentStudents || {}; // Map các học sinh vắng
+        const absentStudentsMap = attendanceData.absentStudents || {};
+        console.log(`[DEBUG] Absent students map for ${dateString}:`, absentStudentsMap); // DEBUG LOG
 
         if (students.length === 0) {
             attendanceListUl.innerHTML = '<li class="loading-placeholder">Chưa có học sinh trong lớp để điểm danh.</li>';
             return;
         }
+        console.log(`[DEBUG] Rendering attendance for ${students.length} students`); // DEBUG LOG
 
         // Hiển thị danh sách học sinh với trạng thái điểm danh
         students.forEach(student => {
-            const isAbsent = absentStudentsMap[student.id] === true; // Kiểm tra có vắng không
+            const isAbsent = absentStudentsMap[student.id] === true;
+            // console.log(`[DEBUG] Student: ${student.name}, ID: ${student.id}, isAbsent: ${isAbsent}`); // DEBUG LOG (có thể quá nhiều)
             const li = createAttendanceListItem(student.id, student.name, isAbsent, dateString);
-            attendanceListUl.appendChild(li);
+            attendanceListUl.appendChild(li); // Append the created li
         });
-         console.log("Đã hiển thị danh sách điểm danh.");
+         console.log("[DEBUG] Đã hiển thị xong danh sách điểm danh."); // DEBUG LOG
 
     } catch (error) {
-        console.error(`Lỗi tải điểm danh ngày ${dateString}: `, error);
+        console.error(`Lỗi tải điểm danh ngày ${dateString}: `, error); // DEBUG LOG
         displayError(attendanceError, `Lỗi tải điểm danh: ${error.message}`);
         attendanceListUl.innerHTML = '<li class="loading-placeholder">Có lỗi xảy ra khi tải điểm danh.</li>';
     }
@@ -737,6 +748,7 @@ function createAttendanceListItem(studentId, studentName, isAbsent, dateString) 
 async function toggleAttendance(studentId, wasAbsent, dateString) {
     if (!currentUser || !currentClassId || !studentId || !dateString) return;
 
+    console.log(`[DEBUG] Toggle attendance for HS ${studentId} on ${dateString}. Was absent: ${wasAbsent}`); // DEBUG LOG
     const attendanceDocRef = db.collection('users').doc(currentUser.uid)
                                .collection('classes').doc(currentClassId)
                                .collection('attendance').doc(dateString);
@@ -749,7 +761,7 @@ async function toggleAttendance(studentId, wasAbsent, dateString) {
             await attendanceDocRef.update({
                 [studentKey]: firebase.firestore.FieldValue.delete() // Xóa field trong map
             });
-            console.log(`Đã điểm danh có mặt cho HS ${studentId} ngày ${dateString}`);
+            console.log(`[DEBUG] Đã điểm danh CÓ MẶT cho HS ${studentId} ngày ${dateString}`);
         } else {
             // Nếu đang có mặt -> chuyển thành vắng (thêm vào map)
             // Sử dụng set với merge:true để tạo document nếu chưa có, hoặc cập nhật nếu đã có
@@ -758,7 +770,7 @@ async function toggleAttendance(studentId, wasAbsent, dateString) {
                     [studentId]: true // Đánh dấu là vắng
                 }
             }, { merge: true }); // Merge để không ghi đè các học sinh vắng khác
-            console.log(`Đã điểm danh vắng mặt cho HS ${studentId} ngày ${dateString}`);
+            console.log(`[DEBUG] Đã điểm danh VẮNG MẶT cho HS ${studentId} ngày ${dateString}`);
         }
         // Tải lại giao diện điểm danh để cập nhật trạng thái
          // Cần lấy lại danh sách học sinh hiện tại
@@ -767,10 +779,11 @@ async function toggleAttendance(studentId, wasAbsent, dateString) {
                                          .collection('students')
                                          .orderBy('name', 'asc').get();
          const students = studentsSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+         console.log("[DEBUG] Gọi lại loadAttendance sau khi toggle."); // DEBUG LOG
          loadAttendance(currentClassId, dateString, students);
 
     } catch (error) {
-        console.error(`Lỗi cập nhật điểm danh cho HS ${studentId} ngày ${dateString}: `, error);
+        console.error(`Lỗi cập nhật điểm danh cho HS ${studentId} ngày ${dateString}: `, error); // DEBUG LOG
         displayError(attendanceError, `Lỗi cập nhật điểm danh: ${error.message}`);
         alert("Có lỗi xảy ra khi cập nhật điểm danh, vui lòng thử lại.");
     }
