@@ -197,23 +197,8 @@ input[type="number"]:focus { /* Thêm input number */
     margin-left: 5px; /* Thêm khoảng cách trái */
 }
 
-/* Kiểu cho nút xóa icon nhỏ (ví dụ: xóa cột điểm) */
-.btn-icon-danger {
-    background: none;
-    border: none;
-    color: #dc3545;
-    cursor: pointer;
-    padding: 2px 4px; /* Padding rất nhỏ */
-    font-size: 1.1em; /* Cỡ chữ to hơn chút cho icon */
-    line-height: 1;
-    margin-left: 4px;
-    vertical-align: middle; /* Căn giữa với text */
-    opacity: 0.6;
-    transition: opacity 0.2s ease;
-}
-.btn-icon-danger:hover {
-    opacity: 1;
-}
+/* Không cần nút xóa icon trong phiên bản này */
+/* .btn-icon-danger { ... } */
 
 
 .btn-link {
@@ -329,7 +314,7 @@ input[type="number"]:focus { /* Thêm input number */
     white-space: nowrap; /* Không xuống dòng */
     overflow: hidden;
     text-overflow: ellipsis;
-    display: inline-block; /* SỬA Ở ĐÂY: Hiển thị mặc định */
+    display: inline-block; /* Hiển thị mặc định */
 }
 
 
