@@ -60,6 +60,8 @@ const attendanceSection = document.getElementById('attendance-section');
 const attendanceDateInput = document.getElementById('attendance-date');
 const attendanceListUl = document.getElementById('attendance-list');
 const attendanceError = document.getElementById('attendance-error');
+const filterAbsentButton = document.getElementById('filter-absent-button'); // Nút lọc MỚI
+const attendanceInfo = document.getElementById('attendance-info'); // Dòng thông tin MỚI
 
 
 // --- BIẾN TRẠNG THÁI ---
@@ -67,6 +69,7 @@ let currentUser = null;
 let currentClassId = null;
 let unsubscribeClasses = null;
 let unsubscribeStudents = null;
+let isFilteringAbsent = false; // Trạng thái lọc điểm danh MỚI
 
 // --- HÀM TIỆN ÍCH ---
 function showView(viewId) {
@@ -86,6 +89,7 @@ function clearErrors() {
     classError.textContent = '';
     studentError.textContent = '';
     attendanceError.textContent = '';
+    attendanceInfo.textContent = ''; // Xóa cả thông tin điểm danh
 }
 
 function displayError(element, message) {
@@ -95,6 +99,15 @@ function displayError(element, message) {
         console.error("Phần tử lỗi không tồn tại:", message);
     }
 }
+
+function displayInfo(element, message) { // Hàm hiển thị thông tin
+    if (element) {
+        element.textContent = message;
+    } else {
+        console.error("Phần tử thông tin không tồn tại:", message);
+    }
+}
+
 
 function getCurrentDateString() {
     const today = new Date();
@@ -126,9 +139,11 @@ auth.onAuthStateChanged(user => {
         showView('auth-view');
         registerForm.style.display = 'none';
         loginForm.style.display = 'block';
+        isFilteringAbsent = false; // Reset trạng thái lọc khi logout
     }
 });
 
+// (Các hàm xử lý đăng nhập, đăng ký, logout, mapAuthError giữ nguyên)
 loginForm.addEventListener('submit', (e) => {
     e.preventDefault();
     clearErrors();
@@ -136,7 +151,7 @@ loginForm.addEventListener('submit', (e) => {
     const password = loginPasswordInput.value;
     auth.signInWithEmailAndPassword(email, password)
         .then((userCredential) => {
-            console.log("Đăng nhập thành công:", userCredential.user.email); // Giữ log này
+            console.log("Đăng nhập thành công:", userCredential.user.email);
         })
         .catch(error => {
             console.error("Lỗi đăng nhập:", error);
@@ -155,7 +170,7 @@ registerForm.addEventListener('submit', (e) => {
     }
     auth.createUserWithEmailAndPassword(email, password)
         .then((userCredential) => {
-            console.log("Đăng ký thành công:", userCredential.user.email); // Giữ log này
+            console.log("Đăng ký thành công:", userCredential.user.email);
         })
         .catch(error => {
             console.error("Lỗi đăng ký:", error);
@@ -233,13 +248,11 @@ function loadClasses() {
                 const li = createClassListItem(doc.id, classData.name);
                 classListUl.appendChild(li);
             });
-            // console.log("Đã tải và hiển thị danh sách lớp."); // Có thể bỏ log này nếu muốn
         }, error => {
             console.error("Lỗi tải danh sách lớp: ", error);
             displayError(classError, `Lỗi tải lớp: ${error.message}`);
             classListUl.innerHTML = '<li class="loading-placeholder">Có lỗi xảy ra khi tải danh sách lớp.</li>';
         });
-    // console.log("Bắt đầu lắng nghe danh sách lớp."); // Có thể bỏ log này
 }
 
 function createClassListItem(classId, className) {
@@ -439,14 +452,12 @@ function loadStudents(classId) {
         const selectedDate = attendanceDateInput.value || getCurrentDateString();
         loadAttendance(classId, selectedDate, students);
 
-        // console.log(`Đã tải và hiển thị danh sách học sinh cho lớp ${classId}.`); // Có thể bỏ log này
     }, error => {
         console.error(`Lỗi tải danh sách học sinh cho lớp ${classId}: `, error);
         displayError(studentError, `Lỗi tải học sinh: ${error.message}`);
         studentListUl.innerHTML = '<li class="loading-placeholder">Có lỗi xảy ra khi tải danh sách học sinh.</li>';
         attendanceListUl.innerHTML = '<li class="loading-placeholder">Lỗi tải danh sách học sinh, không thể điểm danh.</li>';
     });
-     // console.log(`Bắt đầu lắng nghe danh sách học sinh cho lớp ${classId}.`); // Có thể bỏ log này
 }
 
 function createStudentListItem(studentId, studentName) {
@@ -608,12 +619,20 @@ addStudentForm.addEventListener('submit', (e) => {
     });
 });
 
-// --- QUẢN LÝ ĐIỂM DANH (MỚI) ---
+// --- QUẢN LÝ ĐIỂM DANH ---
 
 function initializeAttendance() {
     attendanceDateInput.value = getCurrentDateString();
+    // Gắn listener cho ô ngày
     attendanceDateInput.removeEventListener('change', handleDateChange);
     attendanceDateInput.addEventListener('change', handleDateChange);
+    // Gắn listener cho nút lọc (MỚI)
+    filterAbsentButton.removeEventListener('click', toggleAbsentFilter);
+    filterAbsentButton.addEventListener('click', toggleAbsentFilter);
+    // Reset trạng thái lọc khi vào lớp mới
+    isFilteringAbsent = false;
+    updateFilterButton(); // Cập nhật text nút lọc
+    attendanceListUl.classList.remove('filtering-absent'); // Bỏ class lọc
 }
 
 function handleDateChange() {
@@ -637,13 +656,70 @@ function handleDateChange() {
     }
 }
 
+/**
+ * Bật/tắt chế độ lọc chỉ hiển thị học sinh vắng mặt. (MỚI)
+ */
+function toggleAbsentFilter() {
+    isFilteringAbsent = !isFilteringAbsent; // Đảo trạng thái lọc
+    updateFilterButton(); // Cập nhật text nút
+    applyAttendanceFilter(); // Áp dụng bộ lọc lên danh sách hiện tại
+}
+
+/**
+ * Cập nhật text và trạng thái của nút lọc. (MỚI)
+ */
+function updateFilterButton() {
+     if (isFilteringAbsent) {
+        filterAbsentButton.textContent = 'Hiện tất cả HS';
+        filterAbsentButton.classList.remove('btn-secondary');
+        filterAbsentButton.classList.add('btn-info'); // Đổi màu nút khi đang lọc
+    } else {
+        filterAbsentButton.textContent = 'Chỉ hiện HS vắng';
+        filterAbsentButton.classList.remove('btn-info');
+        filterAbsentButton.classList.add('btn-secondary'); // Màu mặc định
+    }
+}
+
+/**
+ * Áp dụng/bỏ áp dụng bộ lọc lên danh sách điểm danh UL. (MỚI)
+ */
+function applyAttendanceFilter() {
+     if (isFilteringAbsent) {
+        attendanceListUl.classList.add('filtering-absent'); // Thêm class để CSS ẩn các mục không vắng
+    } else {
+        attendanceListUl.classList.remove('filtering-absent'); // Bỏ class để hiện tất cả
+    }
+    // Cập nhật lại thông tin số HS vắng
+    updateAttendanceInfo();
+}
+
+
+/**
+ * Cập nhật dòng thông tin số học sinh vắng. (MỚI)
+ */
+function updateAttendanceInfo() {
+    const totalStudents = attendanceListUl.querySelectorAll('li:not(.loading-placeholder)').length;
+    const absentStudents = attendanceListUl.querySelectorAll('li.absent').length;
+
+    if (totalStudents > 0) {
+         if (isFilteringAbsent) {
+             displayInfo(attendanceInfo, `Đang hiển thị ${absentStudents} học sinh vắng mặt.`);
+         } else {
+             displayInfo(attendanceInfo, `Tổng số: ${totalStudents} học sinh | Vắng mặt: ${absentStudents}`);
+         }
+    } else {
+         attendanceInfo.textContent = ''; // Xóa thông tin nếu không có học sinh
+    }
+}
+
+
 async function loadAttendance(classId, dateString, students) {
     if (!currentUser || !classId || !dateString || !students) {
          attendanceListUl.innerHTML = '<li class="loading-placeholder">Thiếu thông tin để tải điểm danh.</li>';
          return;
     }
     attendanceListUl.innerHTML = '';
-    clearErrors();
+    clearErrors(); // Xóa lỗi cũ, giữ lại info
 
     const attendanceDocRef = db.collection('users').doc(currentUser.uid)
                                .collection('classes').doc(classId)
@@ -656,6 +732,7 @@ async function loadAttendance(classId, dateString, students) {
 
         if (students.length === 0) {
             attendanceListUl.innerHTML = '<li class="loading-placeholder">Chưa có học sinh trong lớp để điểm danh.</li>';
+             updateAttendanceInfo(); // Cập nhật thông tin (sẽ là 0)
             return;
         }
 
@@ -664,12 +741,14 @@ async function loadAttendance(classId, dateString, students) {
             const li = createAttendanceListItem(student.id, student.name, isAbsent, dateString);
             attendanceListUl.appendChild(li);
         });
-        // console.log("Đã hiển thị xong danh sách điểm danh."); // Có thể bỏ log này
+        applyAttendanceFilter(); // Áp dụng bộ lọc sau khi tải xong
+        // updateAttendanceInfo(); // Cập nhật thông tin số HS vắng (đã gọi trong applyAttendanceFilter)
 
     } catch (error) {
         console.error(`Lỗi tải điểm danh ngày ${dateString}: `, error);
         displayError(attendanceError, `Lỗi tải điểm danh: ${error.message}`);
         attendanceListUl.innerHTML = '<li class="loading-placeholder">Có lỗi xảy ra khi tải điểm danh.</li>';
+        attendanceInfo.textContent = ''; // Xóa thông tin khi có lỗi
     }
 }
 
@@ -680,6 +759,10 @@ function createAttendanceListItem(studentId, studentName, isAbsent, dateString) 
     li.classList.toggle('absent', isAbsent);
 
     li.addEventListener('click', () => {
+        // Khi click, luôn tắt chế độ lọc để người dùng thấy sự thay đổi
+        if (isFilteringAbsent) {
+            toggleAbsentFilter(); // Tắt lọc trước khi toggle
+        }
         toggleAttendance(studentId, isAbsent, dateString);
     });
 
@@ -695,6 +778,13 @@ async function toggleAttendance(studentId, wasAbsent, dateString) {
 
     const studentKey = `absentStudents.${studentId}`;
 
+    // Tìm phần tử li tương ứng để cập nhật UI tạm thời trước khi load lại
+    const listItem = attendanceListUl.querySelector(`li[data-id="${studentId}"]`);
+    if (listItem) {
+        listItem.style.opacity = '0.5'; // Làm mờ đi trong khi chờ cập nhật
+    }
+
+
     try {
         if (wasAbsent) {
             await attendanceDocRef.update({
@@ -709,17 +799,29 @@ async function toggleAttendance(studentId, wasAbsent, dateString) {
             }, { merge: true });
             console.log(`Đã điểm danh VẮNG MẶT cho HS ${studentId} ngày ${dateString}`);
         }
+         // Tải lại danh sách học sinh và điểm danh để đảm bảo dữ liệu mới nhất
          const studentsSnapshot = await db.collection('users').doc(currentUser.uid)
                                          .collection('classes').doc(currentClassId)
                                          .collection('students')
                                          .orderBy('name', 'asc').get();
          const students = studentsSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
-         loadAttendance(currentClassId, dateString, students);
+         loadAttendance(currentClassId, dateString, students); // Load lại sẽ tự cập nhật UI và info
 
     } catch (error) {
         console.error(`Lỗi cập nhật điểm danh cho HS ${studentId} ngày ${dateString}: `, error);
         displayError(attendanceError, `Lỗi cập nhật điểm danh: ${error.message}`);
         alert("Có lỗi xảy ra khi cập nhật điểm danh, vui lòng thử lại.");
+         // Khôi phục giao diện nếu lỗi
+         if (listItem) {
+             listItem.style.opacity = '1';
+             // Có thể cần load lại để chắc chắn trạng thái đúng
+              const studentsSnapshot = await db.collection('users').doc(currentUser.uid)
+                                         .collection('classes').doc(currentClassId)
+                                         .collection('students')
+                                         .orderBy('name', 'asc').get();
+             const students = studentsSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+             loadAttendance(currentClassId, dateString, students);
+         }
     }
 }
 
@@ -732,8 +834,9 @@ backToDashboardButton.addEventListener('click', () => {
     studentListUl.innerHTML = '';
     attendanceListUl.innerHTML = '';
     clearErrors();
+    isFilteringAbsent = false; // Reset trạng thái lọc khi thoát
     showView('dashboard-view');
 });
 
 // --- KHỞI CHẠY BAN ĐẦU ---
-console.log("Ứng dụng đã sẵn sàng."); // Giữ log này
+console.log("Ứng dụng đã sẵn sàng.");
