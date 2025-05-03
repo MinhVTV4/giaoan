@@ -385,7 +385,6 @@ async function updateClassName(classId, newName) {
 
 async function deleteClass(classId, className) {
     if (!currentUser || !classId) return;
-    // Cập nhật thông báo xác nhận để bao gồm cả sổ điểm
     const confirmation = confirm(`Bạn có chắc chắn muốn xóa lớp "${className}" không? Hành động này sẽ xóa cả lớp, học sinh, điểm danh, và sổ điểm của lớp đó và không thể hoàn tác.`);
     if (!confirmation) { console.log("Hủy bỏ thao tác xóa lớp."); return; }
 
@@ -533,6 +532,29 @@ function createStudentListItem(studentId, studentData) {
     nameSpan.classList.add('item-name');
     contentDiv.appendChild(nameSpan);
 
+    // Hiển thị thêm chi tiết nhỏ bên cạnh tên (SỬA ĐỔI Ở ĐÂY)
+    const detailsSpan = document.createElement('span');
+    detailsSpan.classList.add('student-details');
+    // Ví dụ: Hiển thị ngày sinh nếu có
+    let detailText = '';
+    if (studentData.dob) {
+        // Định dạng lại ngày sinh nếu cần (ví dụ: DD/MM/YYYY)
+        try {
+            const [year, month, day] = studentData.dob.split('-');
+            detailText += ` (NS: ${day}/${month}/${year})`;
+        } catch (e) {
+            detailText += ` (NS: ${studentData.dob})`; // Hiển thị nguyên gốc nếu lỗi định dạng
+        }
+    }
+    // Thêm thông tin khác nếu muốn, ví dụ:
+    // if (studentData.parentContact) {
+    //     detailText += ` - ĐT: ${studentData.parentContact}`;
+    // }
+    detailsSpan.textContent = detailText;
+    detailsSpan.style.display = detailText ? 'inline-block' : 'none'; // Chỉ hiện nếu có nội dung
+    contentDiv.appendChild(detailsSpan);
+
+
     // --- Form sửa chi tiết (ẩn ban đầu) ---
     const editForm = document.createElement('form');
     editForm.classList.add('edit-form');
@@ -566,7 +588,7 @@ function createStudentListItem(studentId, studentData) {
     const cancelButton = editForm.querySelector('.cancel-edit-student');
     cancelButton.addEventListener('click', () => {
         li.classList.remove('editing');
-        // Không cần ẩn/hiện thủ công vì listener sẽ render lại
+        // CSS sẽ tự động ẩn form và hiện lại tên/chi tiết
     });
 
     // Gắn sự kiện submit cho form
@@ -613,7 +635,7 @@ function createStudentListItem(studentId, studentData) {
         });
         // Mở form sửa này
         li.classList.add('editing');
-        // Không cần ẩn/hiện thủ công vì CSS xử lý
+        // CSS sẽ xử lý việc ẩn/hiện các phần tử
         editForm.querySelector('input[type="text"]').focus(); // Focus vào ô tên
     });
     actionsDiv.appendChild(editButton);
