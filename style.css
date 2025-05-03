@@ -1,604 +1,1120 @@
-/* style.css */
-
-/* Thiết lập cơ bản và font chữ */
-body {
-    font-family: 'Inter', sans-serif; /* Sử dụng font Inter */
-    margin: 0;
-    padding: 0;
-    background-color: #f0f2f5; /* Màu nền xám nhạt */
-    color: #333;
-    line-height: 1.6;
-}
-
-.container {
-    max-width: 900px; /* Giới hạn chiều rộng tối đa */
-    margin: 30px auto; /* Căn giữa container */
-    padding: 20px;
-}
-
-/* Kiểu cho các thẻ Card (chứa các view) */
-.card {
-    background-color: #ffffff; /* Nền trắng */
-    padding: 25px 30px;
-    margin-bottom: 20px;
-    border-radius: 8px; /* Bo góc */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08); /* Đổ bóng nhẹ */
-    border: 1px solid #e0e0e0; /* Viền mờ */
-}
-
-/* Kiểu cho các View (màn hình) */
-.view {
-    display: none; /* Ẩn tất cả các view ban đầu */
-}
-
-.active-view {
-    display: block; /* Chỉ hiển thị view đang hoạt động */
-}
-
-.view-title {
-    color: #1a237e; /* Màu xanh đậm cho tiêu đề chính */
-    margin-top: 0;
-    margin-bottom: 20px;
-    font-weight: 600;
-}
-
-.section-title {
-    color: #3949ab; /* Màu xanh nhạt hơn cho tiêu đề phụ */
-    margin-top: 25px;
-    margin-bottom: 15px;
-    font-weight: 500;
-    border-bottom: 1px solid #e0e0e0;
-    padding-bottom: 5px;
-}
-
-/* Kiểu cho Form */
-.form-group {
-    margin-bottom: 15px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: 500;
-    color: #555;
-}
-
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="date"],
-input[type="tel"], /* Thêm kiểu cho tel */
-textarea, /* Thêm kiểu cho textarea */
-input[type="number"] { /* Thêm input number */
-    width: 100%; /* Chiếm toàn bộ chiều rộng */
-    padding: 12px 15px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    box-sizing: border-box; /* Tính cả padding và border vào width */
-    font-size: 1rem;
-    transition: border-color 0.2s ease-in-out;
-    /* Đảm bảo font chữ kế thừa */
-    font-family: inherit;
-}
-
-textarea {
-    min-height: 80px; /* Chiều cao tối thiểu cho ghi chú */
-    resize: vertical; /* Cho phép thay đổi chiều cao dọc */
-}
-
-
-input[type="text"]:focus,
-input[type="email"]:focus,
-input[type="password"]:focus,
-input[type="date"]:focus,
-input[type="tel"]:focus,
-textarea:focus,
-input[type="number"]:focus { /* Thêm input number */
-    border-color: #007bff; /* Đổi màu viền khi focus */
-    outline: none; /* Bỏ viền focus mặc định */
-}
-
-/* Kiểu riêng cho input điểm trong bảng */
-.grade-input {
-    padding: 6px 8px; /* Giảm padding */
-    font-size: 0.95rem; /* Giảm cỡ chữ */
-    text-align: center; /* Căn giữa điểm */
-    max-width: 70px; /* Giới hạn chiều rộng ô điểm */
-    /* Loại bỏ mũi tên lên xuống của input number (tuỳ trình duyệt) */
-    -moz-appearance: textfield;
-}
-.grade-input::-webkit-outer-spin-button,
-.grade-input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-
-/* Kiểu cho các nút bấm */
-.btn {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 1rem;
-    font-weight: 500;
-    text-align: center;
-    transition: background-color 0.2s ease, box-shadow 0.2s ease;
-    margin-right: 8px;
-    margin-bottom: 8px; /* Thêm khoảng cách dưới cho nút */
-    /* Thêm thuộc tính để các nút trên cùng dòng căn chỉnh tốt hơn */
-    vertical-align: middle;
-    line-height: 1.5; /* Đảm bảo chiều cao ổn định */
-}
-
-.btn-primary {
-    background-color: #007bff; /* Xanh dương */
-    color: white;
-}
-
-.btn-primary:hover {
-    background-color: #0056b3;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.btn-secondary {
-    background-color: #6c757d; /* Xám */
-    color: white;
-}
-
-.btn-secondary:hover {
-    background-color: #5a6268;
-}
-
-.btn-success {
-    background-color: #28a745; /* Xanh lá */
-    color: white;
-}
-
-.btn-success:hover {
-    background-color: #218838;
-}
-
-/* Thêm kiểu cho nút xóa */
-.btn-danger {
-    background-color: #dc3545; /* Màu đỏ */
-    color: white;
-}
-
-.btn-danger:hover {
-    background-color: #c82333;
-}
-
-/* Thêm kiểu cho nút sửa */
-.btn-warning {
-    background-color: #ffc107; /* Màu vàng */
-    color: #212529; /* Màu chữ tối */
-}
-
-.btn-warning:hover {
-    background-color: #e0a800;
-}
-
-/* Thêm kiểu cho nút info (dùng cho nút lọc) */
-.btn-info {
-    background-color: #17a2b8; /* Xanh lam */
-    color: white;
-}
-
-.btn-info:hover {
-    background-color: #117a8b;
-}
-
-
-.btn-sm {
-    padding: 5px 10px; /* Giảm padding cho nút nhỏ */
-    font-size: 0.875rem; /* Giảm cỡ chữ */
-    line-height: 1.4; /* Điều chỉnh line-height cho phù hợp */
-    margin-left: 5px; /* Thêm khoảng cách trái */
-}
-
-/* Kiểu cho nút xóa icon nhỏ (ví dụ: xóa cột điểm) */
-.btn-icon-danger {
-    background: none;
-    border: none;
-    color: #dc3545;
-    cursor: pointer;
-    padding: 2px 4px; /* Padding rất nhỏ */
-    font-size: 1.1em; /* Cỡ chữ to hơn chút cho icon */
-    line-height: 1;
-    margin-left: 4px;
-    vertical-align: middle; /* Căn giữa với text */
-    opacity: 0.6;
-    transition: opacity 0.2s ease;
-}
-.btn-icon-danger:hover {
-    opacity: 1;
-}
-
-
-.btn-link {
-    background: none;
-    border: none;
-    color: #007bff;
-    text-decoration: underline;
-    cursor: pointer;
-    padding: 0;
-    font-size: 0.9em;
-}
-
-.btn-link:hover {
-    color: #0056b3;
-}
-
-/* Form nằm trên một hàng */
-.inline-form {
-    display: flex;
-    align-items: center; /* Căn giữa các item theo chiều dọc */
-    gap: 10px; /* Khoảng cách giữa các phần tử */
-    margin-bottom: 15px;
-    flex-wrap: wrap; /* Cho phép xuống dòng nếu không đủ chỗ */
-}
-
-.inline-form input[type="text"] {
-    flex-grow: 1; /* Cho phép input chiếm không gian còn lại */
-    margin-bottom: 0; /* Bỏ margin dưới khi nằm trên hàng */
-    min-width: 150px; /* Đặt chiều rộng tối thiểu */
-}
-
-.inline-form button {
-     flex-shrink: 0; /* Ngăn nút bị co lại */
-}
-
-/* Thông báo lỗi và thông tin */
-.error-message {
-    color: #dc3545; /* Màu đỏ */
-    font-size: 0.9em;
-    margin-top: 5px;
-    min-height: 1.2em; /* Đảm bảo có không gian ngay cả khi không có lỗi */
-}
-.info-message { /* Kiểu cho dòng thông tin */
-    color: #17a2b8; /* Màu xanh lam */
-    font-size: 0.9em;
-    margin-top: -5px; /* Kéo lên gần hơn */
-    margin-bottom: 10px;
-    min-height: 1.2em;
-}
-
-/* Header của các view */
-.header {
-    display: flex;
-    justify-content: space-between; /* Đẩy các phần tử ra hai bên */
-    align-items: center; /* Căn giữa theo chiều dọc */
-    margin-bottom: 15px;
-    flex-wrap: wrap; /* Cho phép xuống dòng trên màn hình nhỏ */
-    gap: 10px; /* Thêm khoảng cách giữa các phần tử header */
-}
-
-.user-info {
-    font-size: 0.95em;
-    color: #555;
-    display: flex;
-    align-items: center;
-    gap: 10px; /* Khoảng cách giữa text và nút logout */
-    flex-shrink: 0; /* Ngăn co lại */
-}
-
-/* Danh sách */
-.item-list {
-    list-style: none;
-    padding: 0;
-    margin-top: 15px;
-}
-
-.item-list li {
-    background-color: #f8f9fa; /* Màu nền nhạt cho item */
-    padding: 12px 15px;
-    margin-bottom: 8px;
-    border-radius: 5px;
-    border: 1px solid #e9ecef;
-    display: flex; /* Sử dụng flexbox để căn chỉnh tên và nút */
-    justify-content: space-between; /* Đẩy tên và nút ra hai bên */
-    align-items: center; /* Căn giữa theo chiều dọc */
-    transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease; /* Thêm opacity */
-    min-height: 40px; /* Đảm bảo chiều cao tối thiểu ổn định khi sửa inline */
-}
-
-.item-list li .item-content { /* Container cho tên hoặc form sửa */
-    flex-grow: 1; /* Chiếm không gian */
-    margin-right: 10px; /* Khoảng cách với nút */
-    display: flex; /* Dùng flex để chứa tên hoặc form sửa */
-    align-items: center; /* Căn giữa các phần tử con */
-    flex-wrap: wrap; /* Cho phép xuống dòng nếu cần */
-}
-
-
-.item-list li .item-name { /* Kiểu cho tên hiển thị bình thường */
-    flex-grow: 1; /* Cho phép tên chiếm không gian */
-    overflow: hidden; /* Ẩn phần tên quá dài */
-    text-overflow: ellipsis; /* Hiển thị dấu ... nếu tên quá dài */
-    white-space: nowrap; /* Ngăn tên xuống dòng */
-    display: inline-block; /* Để hoạt động đúng với flex */
-    font-weight: 500; /* Tên đậm hơn chút */
-    margin-right: 10px; /* Khoảng cách với chi tiết (nếu có) */
-}
-/* Hiển thị thông tin chi tiết học sinh (ẩn ban đầu) */
-.item-list li .student-details {
-    font-size: 0.85em;
-    color: #6c757d;
-    margin-left: 5px; /* Khoảng cách với tên */
-    white-space: nowrap; /* Không xuống dòng */
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: none; /* Ẩn đi, sẽ hiện khi cần */
-}
-
-
-.item-list li.class-item .item-name { /* Thêm class riêng cho item lớp để có thể click */
-     cursor: pointer;
-}
-
-.item-list li.class-item:hover {
-     background-color: #e9ecef; /* Đổi màu nền khi hover */
-}
-
-.item-list li .actions { /* Container cho các nút hành động */
-    flex-shrink: 0; /* Ngăn container nút bị co lại */
-    display: flex;
-    gap: 5px; /* Khoảng cách giữa các nút */
-}
-
-.item-list li .edit-form { /* Kiểu cho form sửa inline */
-    display: none; /* Ẩn ban đầu */
-    flex-grow: 1;
-    /* display: flex; */ /* Bỏ flex ở đây */
-    /* align-items: center; */
-    /* gap: 5px; */
-    width: 100%; /* Chiếm toàn bộ chiều rộng của contentDiv */
-}
-
-/* Kiểu cho các trường trong form sửa học sinh */
-.edit-form .form-group-inline {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-    width: 100%;
-}
-.edit-form .form-group-inline label {
-    flex-basis: 100px; /* Chiều rộng cố định cho label */
-    flex-shrink: 0;
-    text-align: right;
-    font-size: 0.9em;
-    color: #555;
-    margin-bottom: 0; /* Bỏ margin dưới của label */
-}
-.edit-form .form-group-inline input,
-.edit-form .form-group-inline textarea {
-    flex-grow: 1; /* Input/textarea chiếm không gian còn lại */
-    padding: 5px 8px;
-    font-size: 0.95rem;
-    margin-bottom: 0;
-}
-.edit-form .edit-form-buttons {
-    display: flex;
-    justify-content: flex-end; /* Đẩy nút sang phải */
-    gap: 5px;
-    margin-top: 10px;
-    width: 100%;
-}
-
-
-.item-list li.editing .item-content .item-name,
-.item-list li.editing .item-content .student-details {
-    display: none; /* Ẩn tên và chi tiết khi đang sửa */
-}
-.item-list li.editing .item-content .edit-form {
-    display: block; /* Hiện form sửa khi đang sửa (dạng block để các group inline hoạt động) */
-}
-.item-list li.editing .actions {
-    display: none; /* Ẩn nút Sửa/Xóa khi đang sửa */
-}
-
-
-
-.loading-placeholder {
-    color: #6c757d;
-    font-style: italic;
-    text-align: center;
-    padding: 20px;
-}
-
-hr {
-    border: 0;
-    border-top: 1px solid #e0e0e0;
-    margin: 25px 0;
-}
-
-/* --- Kiểu cho Phần Điểm danh --- */
-.attendance-controls {
-    margin-bottom: 15px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap; /* Cho phép xuống dòng */
-}
-
-.attendance-controls label {
-    font-weight: 500;
-    color: #555;
-    flex-shrink: 0; /* Không co lại */
-}
-
-.attendance-controls input[type="date"] {
-    width: auto; /* Cho phép chiều rộng tự động */
-    flex-grow: 1; /* Chiếm không gian còn lại */
-    max-width: 200px; /* Giới hạn chiều rộng tối đa */
-}
-
-.attendance-controls button { /* Kiểu cho nút lọc */
-     flex-shrink: 0; /* Không co lại */
-     margin-left: auto; /* Đẩy nút sang phải nếu đủ chỗ */
-}
-
-.attendance-list li {
-    cursor: pointer; /* Cho phép click để điểm danh */
-    /* Hiệu ứng chuyển đổi mượt mà hơn */
-    transition: background-color 0.2s ease, border-left 0.2s ease, opacity 0.2s ease, display 0.3s ease; /* Thêm display */
-    border-left: 5px solid transparent; /* Viền trái để chỉ trạng thái */
-}
-
-.attendance-list li:hover {
-    background-color: #e9ecef;
-}
-
-.attendance-list li.absent {
-    background-color: #f8d7da; /* Nền đỏ nhạt cho học sinh vắng */
-    border-left-color: #dc3545; /* Viền trái màu đỏ */
-    /* opacity: 0.7; */ /* Có thể làm mờ đi một chút */
-    color: #721c24; /* Màu chữ đậm hơn */
-}
-
-.attendance-list li.absent:hover {
-    background-color: #f1c6cb; /* Đậm hơn khi hover */
-}
-
-/* Kiểu để ẩn học sinh khi lọc */
-.attendance-list.filtering-absent li:not(.absent) {
-    display: none;
-}
-
-/* --- Kiểu cho Phần Sổ điểm --- */
-.gradebook-controls {
-    margin-bottom: 15px;
-}
-
-.table-responsive {
-    overflow-x: auto; /* Cho phép cuộn ngang nếu bảng quá rộng */
-    margin-top: 15px;
-}
-
-.gradebook-table {
-    width: 100%;
-    border-collapse: collapse; /* Gộp đường viền */
-    min-width: 600px; /* Đặt chiều rộng tối thiểu để tránh quá hẹp */
-}
-
-.gradebook-table th,
-.gradebook-table td {
-    border: 1px solid #dee2e6; /* Viền xám nhạt */
-    padding: 8px 10px; /* Padding cho ô */
-    text-align: left; /* Căn trái mặc định */
-    vertical-align: middle; /* Căn giữa theo chiều dọc */
-}
-
-.gradebook-table thead th {
-    background-color: #e9ecef; /* Nền xám nhạt cho header */
-    font-weight: 600; /* Chữ đậm */
-    position: sticky; /* Giữ header cố định khi cuộn dọc */
-    top: 0; /* Vị trí cố định ở trên cùng */
-    z-index: 1; /* Đảm bảo header nằm trên nội dung */
-    white-space: nowrap; /* Không xuống dòng tên cột */
-}
-/* Thêm khoảng cách cho nút xóa cột điểm */
-.gradebook-table thead th .delete-column-btn {
-    margin-left: 5px;
-}
-
-
-.gradebook-table tbody th { /* Kiểu cho cột tên học sinh */
-    font-weight: 500;
-    background-color: #f8f9fa; /* Nền khác biệt chút */
-    position: sticky; /* Giữ cột tên HS cố định khi cuộn ngang */
-    left: 0; /* Vị trí cố định bên trái */
-    z-index: 0; /* Nằm dưới header cột */
-    min-width: 150px; /* Đảm bảo đủ rộng */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.gradebook-table td {
-    text-align: center; /* Căn giữa ô điểm */
-}
-
-
-/* Responsive Design */
-@media (max-width: 600px) {
-    .container {
-        margin: 15px;
-        padding: 15px;
+// app.js
+
+// --- CẤU HÌNH FIREBASE ---
+const firebaseConfig = {
+  apiKey: "AIzaSyA2818INoMI_LNIi3kTilRMUQXZ9S6yJjE",
+  authDomain: "giaoandientu-7782.firebaseapp.com",
+  projectId: "giaoandientu-7782",
+  storageBucket: "giaoandientu-7782.firebasestorage.app",
+  messagingSenderId: "585204135383",
+  appId: "1:585204135383:web:78c7566be2083638290792",
+  measurementId: "G-4F3MHQT43X"
+};
+
+// --- KHỞI TẠO FIREBASE ---
+try {
+    firebase.initializeApp(firebaseConfig);
+} catch (e) {
+    console.error("Lỗi khởi tạo Firebase:", e);
+    alert("Không thể khởi tạo ứng dụng. Vui lòng kiểm tra cấu hình Firebase trong app.js và kết nối mạng.");
+}
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// --- LẤY THAM CHIẾU ĐẾN CÁC PHẦN TỬ HTML ---
+const authView = document.getElementById('auth-view');
+const dashboardView = document.getElementById('dashboard-view');
+const classDetailView = document.getElementById('class-detail-view');
+const allViews = document.querySelectorAll('.view');
+
+// Auth Elements
+const loginForm = document.getElementById('login-form');
+const registerForm = document.getElementById('register-form');
+const loginEmailInput = document.getElementById('login-email');
+const loginPasswordInput = document.getElementById('login-password');
+const registerEmailInput = document.getElementById('register-email');
+const registerPasswordInput = document.getElementById('register-password');
+const showRegisterButton = document.getElementById('show-register-button');
+const showLoginButton = document.getElementById('show-login-button');
+const authError = document.getElementById('auth-error');
+const registerError = document.getElementById('register-error');
+const logoutButton = document.getElementById('logout-button');
+const userEmailSpan = document.getElementById('user-email');
+
+// Dashboard Elements
+const addClassForm = document.getElementById('add-class-form');
+const classNameInput = document.getElementById('class-name');
+const classListUl = document.getElementById('class-list');
+const classError = document.getElementById('class-error');
+
+// Class Detail Elements
+const addStudentForm = document.getElementById('add-student-form');
+const studentNameInput = document.getElementById('student-name');
+const studentListUl = document.getElementById('student-list');
+const detailClassNameH1 = document.getElementById('detail-class-name');
+const backToDashboardButton = document.getElementById('back-to-dashboard-button');
+const studentError = document.getElementById('student-error');
+
+// Attendance Elements
+const attendanceSection = document.getElementById('attendance-section');
+const attendanceDateInput = document.getElementById('attendance-date');
+const attendanceListUl = document.getElementById('attendance-list');
+const attendanceError = document.getElementById('attendance-error');
+const filterAbsentButton = document.getElementById('filter-absent-button');
+const attendanceInfo = document.getElementById('attendance-info');
+
+// Gradebook Elements
+const gradebookSection = document.getElementById('gradebook-section');
+const addGradeColumnButton = document.getElementById('add-grade-column-button');
+const gradebookTableContainer = document.getElementById('gradebook-table-container');
+const gradebookError = document.getElementById('gradebook-error');
+
+
+// --- BIẾN TRẠNG THÁI ---
+let currentUser = null;
+let currentClassId = null;
+let unsubscribeClasses = null;
+let unsubscribeStudents = null;
+let unsubscribeGradeColumns = null;
+let isFilteringAbsent = false;
+let currentStudentsData = [];
+let currentGradeColumns = [];
+
+
+// --- HÀM TIỆN ÍCH ---
+function showView(viewId) {
+    allViews.forEach(view => view.style.display = 'none');
+    const activeView = document.getElementById(viewId);
+    if (activeView) {
+        activeView.style.display = 'block';
+        activeView.classList.add('active-view');
+    } else {
+        console.error("Không tìm thấy view với ID:", viewId);
+    }
+}
+
+function clearErrors() {
+    authError.textContent = '';
+    registerError.textContent = '';
+    classError.textContent = '';
+    studentError.textContent = '';
+    attendanceError.textContent = '';
+    attendanceInfo.textContent = '';
+    gradebookError.textContent = '';
+}
+
+function displayError(element, message) {
+    if (element) {
+        element.textContent = message;
+    } else {
+        console.error("Phần tử lỗi không tồn tại:", message);
+    }
+}
+
+function displayInfo(element, message) {
+    if (element) {
+        element.textContent = message;
+    } else {
+        console.error("Phần tử thông tin không tồn tại:", message);
+    }
+}
+
+
+function getCurrentDateString() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// --- QUẢN LÝ XÁC THỰC (AUTHENTICATION) ---
+auth.onAuthStateChanged(user => {
+    clearErrors();
+    if (user) {
+        currentUser = user;
+        userEmailSpan.textContent = user.email;
+        showView('dashboard-view');
+        loadClasses();
+    } else {
+        currentUser = null;
+        if (unsubscribeClasses) unsubscribeClasses();
+        if (unsubscribeStudents) unsubscribeStudents();
+        if (unsubscribeGradeColumns) unsubscribeGradeColumns();
+        unsubscribeClasses = null;
+        unsubscribeStudents = null;
+        unsubscribeGradeColumns = null;
+        classListUl.innerHTML = '';
+        studentListUl.innerHTML = '';
+        attendanceListUl.innerHTML = '';
+        gradebookTableContainer.innerHTML = '';
+        loginForm.reset();
+        registerForm.reset();
+        showView('auth-view');
+        registerForm.style.display = 'none';
+        loginForm.style.display = 'block';
+        isFilteringAbsent = false;
+    }
+});
+
+// (Các hàm xử lý đăng nhập, đăng ký, logout, mapAuthError giữ nguyên)
+loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    clearErrors();
+    const email = loginEmailInput.value;
+    const password = loginPasswordInput.value;
+    auth.signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+            console.log("Đăng nhập thành công:", userCredential.user.email);
+        })
+        .catch(error => {
+            console.error("Lỗi đăng nhập:", error);
+            displayError(authError, `Đăng nhập thất bại: ${mapAuthError(error.code)}`);
+        });
+});
+
+registerForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    clearErrors();
+    const email = registerEmailInput.value;
+    const password = registerPasswordInput.value;
+    if (password.length < 6) {
+        displayError(registerError, "Mật khẩu phải có ít nhất 6 ký tự.");
+        return;
+    }
+    auth.createUserWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+            console.log("Đăng ký thành công:", userCredential.user.email);
+        })
+        .catch(error => {
+            console.error("Lỗi đăng ký:", error);
+            displayError(registerError, `Đăng ký thất bại: ${mapAuthError(error.code)}`);
+        });
+});
+
+showRegisterButton.addEventListener('click', () => {
+    clearErrors();
+    loginForm.style.display = 'none';
+    registerForm.style.display = 'block';
+});
+
+showLoginButton.addEventListener('click', () => {
+    clearErrors();
+    registerForm.style.display = 'none';
+    loginForm.style.display = 'block';
+});
+
+logoutButton.addEventListener('click', () => {
+    auth.signOut().catch(error => console.error("Lỗi đăng xuất:", error));
+});
+
+function mapAuthError(errorCode) {
+    switch (errorCode) {
+        case 'auth/invalid-email': return 'Địa chỉ email không hợp lệ.';
+        case 'auth/user-disabled': return 'Tài khoản này đã bị vô hiệu hóa.';
+        case 'auth/user-not-found': return 'Không tìm thấy tài khoản với email này.';
+        case 'auth/wrong-password': return 'Sai mật khẩu.';
+        case 'auth/email-already-in-use': return 'Địa chỉ email này đã được sử dụng.';
+        case 'auth/weak-password': return 'Mật khẩu quá yếu.';
+        case 'auth/requires-recent-login': return 'Hành động này yêu cầu đăng nhập lại gần đây.';
+        default: return 'Có lỗi xảy ra, vui lòng thử lại. (' + errorCode + ')';
+    }
+}
+
+
+// --- QUẢN LÝ LỚP HỌC (FIRESTORE) ---
+addClassForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    clearErrors();
+    const className = classNameInput.value.trim();
+    if (!className) { displayError(classError, "Vui lòng nhập tên lớp học."); return; }
+    if (!currentUser) { displayError(classError, "Bạn cần đăng nhập để thêm lớp."); return; }
+
+    db.collection('users').doc(currentUser.uid).collection('classes').add({
+        name: className,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        ownerId: currentUser.uid
+    })
+    .then(() => {
+        console.log("Đã thêm lớp:", className);
+        classNameInput.value = '';
+    })
+    .catch(error => {
+        console.error("Lỗi thêm lớp học: ", error);
+        displayError(classError, `Không thể thêm lớp: ${error.message}`);
+    });
+});
+
+function loadClasses() {
+    if (!currentUser) return;
+    if (unsubscribeClasses) unsubscribeClasses();
+
+    unsubscribeClasses = db.collection('users').doc(currentUser.uid).collection('classes')
+        .orderBy('createdAt', 'desc')
+        .onSnapshot(snapshot => {
+            classListUl.innerHTML = '';
+            if (snapshot.empty) {
+                classListUl.innerHTML = '<li class="loading-placeholder">Chưa có lớp học nào. Hãy thêm lớp mới!</li>';
+                return;
+            }
+            snapshot.forEach(doc => {
+                const classData = doc.data();
+                const li = createClassListItem(doc.id, classData.name);
+                classListUl.appendChild(li);
+            });
+        }, error => {
+            console.error("Lỗi tải danh sách lớp: ", error);
+            displayError(classError, `Lỗi tải lớp: ${error.message}`);
+            classListUl.innerHTML = '<li class="loading-placeholder">Có lỗi xảy ra khi tải danh sách lớp.</li>';
+        });
+}
+
+function createClassListItem(classId, className) {
+    // (Giữ nguyên hàm này như phiên bản trước)
+    const li = document.createElement('li');
+    li.dataset.id = classId;
+    li.dataset.name = className;
+    li.classList.add('class-item');
+
+    const contentDiv = document.createElement('div');
+    contentDiv.classList.add('item-content');
+
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = className;
+    nameSpan.classList.add('item-name');
+    nameSpan.style.cursor = 'pointer';
+    nameSpan.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!li.classList.contains('editing')) {
+             viewClassDetail(classId, className);
+        }
+    });
+    contentDiv.appendChild(nameSpan);
+
+    const editForm = document.createElement('form');
+    editForm.classList.add('edit-form');
+    editForm.style.display = 'none';
+
+    const editInput = document.createElement('input');
+    editInput.type = 'text';
+    editInput.value = className;
+    editInput.required = true;
+    editForm.appendChild(editInput);
+
+    const saveButton = document.createElement('button');
+    saveButton.type = 'submit';
+    saveButton.textContent = 'Lưu';
+    saveButton.classList.add('btn', 'btn-success', 'btn-sm');
+    editForm.appendChild(saveButton);
+
+    const cancelButton = document.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.textContent = 'Hủy';
+    cancelButton.classList.add('btn', 'btn-secondary', 'btn-sm');
+    cancelButton.addEventListener('click', () => {
+        li.classList.remove('editing');
+        nameSpan.style.display = '';
+        editForm.style.display = 'none';
+        actionsDiv.style.display = '';
+    });
+    editForm.appendChild(cancelButton);
+
+    editForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const newName = editInput.value.trim();
+        if (newName && newName !== className) {
+            try {
+                await updateClassName(classId, newName);
+                cancelButton.click();
+            } catch (error) {
+                console.error("Lỗi cập nhật tên lớp:", error);
+                alert(`Không thể cập nhật tên lớp: ${error.message}`);
+            }
+        } else if (newName === className) {
+             cancelButton.click();
+        } else {
+            alert("Tên lớp không được để trống.");
+        }
+    });
+
+    contentDiv.appendChild(editForm);
+    li.appendChild(contentDiv);
+
+    const actionsDiv = document.createElement('div');
+    actionsDiv.classList.add('actions');
+
+    const editButton = document.createElement('button');
+    editButton.textContent = 'Sửa';
+    editButton.classList.add('btn', 'btn-warning', 'btn-sm');
+    editButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        li.classList.add('editing');
+        nameSpan.style.display = 'none';
+        editForm.style.display = 'flex';
+        actionsDiv.style.display = 'none';
+        editInput.focus();
+        editInput.select();
+    });
+    actionsDiv.appendChild(editButton);
+
+    const deleteButton = document.createElement('button');
+    deleteButton.textContent = 'Xóa';
+    deleteButton.classList.add('btn', 'btn-danger', 'btn-sm');
+    deleteButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteClass(classId, className);
+    });
+    actionsDiv.appendChild(deleteButton);
+
+    li.appendChild(actionsDiv);
+
+    return li;
+}
+
+async function updateClassName(classId, newName) {
+    if (!currentUser || !classId || !newName) return;
+    const classRef = db.collection('users').doc(currentUser.uid).collection('classes').doc(classId);
+    try {
+        await classRef.update({ name: newName });
+        console.log(`Đã cập nhật tên lớp ${classId} thành "${newName}"`);
+    } catch (error) {
+        console.error("Lỗi cập nhật tên lớp:", error);
+        throw error;
+    }
+}
+
+async function deleteClass(classId, className) {
+    if (!currentUser || !classId) return;
+    const confirmation = confirm(`Bạn có chắc chắn muốn xóa lớp "${className}" không? Hành động này sẽ xóa cả lớp, học sinh, điểm danh, và sổ điểm của lớp đó và không thể hoàn tác.`);
+    if (!confirmation) { console.log("Hủy bỏ thao tác xóa lớp."); return; }
+
+    console.log(`Bắt đầu xóa lớp: ${className} (ID: ${classId})`);
+    const classRef = db.collection('users').doc(currentUser.uid).collection('classes').doc(classId);
+
+    try {
+        // Xóa subcollection 'students' (và điểm trong đó)
+        const studentsRef = classRef.collection('students');
+        const studentSnapshot = await studentsRef.get();
+        if (!studentSnapshot.empty) {
+            console.log(`Tìm thấy ${studentSnapshot.size} học sinh để xóa...`);
+            const batchStudents = db.batch();
+            studentSnapshot.forEach(doc => batchStudents.delete(doc.ref));
+            await batchStudents.commit();
+            console.log("Đã xóa xong học sinh.");
+        } else {
+            console.log("Không có học sinh nào trong lớp để xóa.");
+        }
+
+        // Xóa subcollection 'attendance'
+        const attendanceRef = classRef.collection('attendance');
+        const attendanceSnapshot = await attendanceRef.get();
+         if (!attendanceSnapshot.empty) {
+            console.log(`Tìm thấy ${attendanceSnapshot.size} bản ghi điểm danh để xóa...`);
+            const batchAttendance = db.batch();
+            attendanceSnapshot.forEach(doc => batchAttendance.delete(doc.ref));
+            await batchAttendance.commit();
+            console.log("Đã xóa xong dữ liệu điểm danh.");
+        } else {
+            console.log("Không có dữ liệu điểm danh nào trong lớp để xóa.");
+        }
+
+        // Xóa subcollection 'gradeColumns'
+        const gradeColsRef = classRef.collection('gradeColumns');
+        const gradeColsSnapshot = await gradeColsRef.get();
+         if (!gradeColsSnapshot.empty) {
+            console.log(`Tìm thấy ${gradeColsSnapshot.size} cột điểm để xóa...`);
+            const batchGradeCols = db.batch();
+            gradeColsSnapshot.forEach(doc => batchGradeCols.delete(doc.ref));
+            await batchGradeCols.commit();
+            console.log("Đã xóa xong các cột điểm.");
+        } else {
+            console.log("Không có cột điểm nào trong lớp để xóa.");
+        }
+
+
+        // Xóa document của lớp học
+        await classRef.delete();
+        console.log(`Đã xóa thành công lớp: ${className}`);
+    } catch (error) {
+        console.error(`Lỗi khi xóa lớp "${className}": `, error);
+        displayError(classError, `Không thể xóa lớp "${className}": ${error.message}`);
+        alert(`Đã xảy ra lỗi khi xóa lớp "${className}". Vui lòng thử lại.`);
+    }
+}
+
+// --- QUẢN LÝ HỌC SINH (FIRESTORE) ---
+function viewClassDetail(classId, className) {
+    if (!classId || !className) { console.error("Thiếu thông tin lớp để xem chi tiết."); return; }
+    currentClassId = classId;
+    detailClassNameH1.textContent = `Lớp: ${className}`;
+    studentListUl.innerHTML = '<li class="loading-placeholder">Đang tải danh sách học sinh...</li>';
+    attendanceListUl.innerHTML = '<li class="loading-placeholder">Chọn ngày để xem điểm danh...</li>';
+    gradebookTableContainer.innerHTML = '<p class="loading-placeholder">Đang tải sổ điểm...</p>';
+    clearErrors();
+    showView('class-detail-view');
+
+    initializeAttendance();
+    initializeGradebook();
+    loadStudentsAndGradeColumns(classId);
+}
+
+
+function loadStudentsAndGradeColumns(classId) {
+    if (!currentUser || !classId) return;
+
+    if (unsubscribeStudents) unsubscribeStudents();
+    if (unsubscribeGradeColumns) unsubscribeGradeColumns();
+
+    const studentsRef = db.collection('users').doc(currentUser.uid)
+                        .collection('classes').doc(classId)
+                        .collection('students').orderBy('name', 'asc');
+
+    const gradeColsRef = db.collection('users').doc(currentUser.uid)
+                         .collection('classes').doc(classId)
+                         .collection('gradeColumns').orderBy('createdAt', 'asc');
+
+    unsubscribeStudents = studentsRef.onSnapshot(studentSnapshot => {
+        studentListUl.innerHTML = '';
+        currentStudentsData = [];
+        if (studentSnapshot.empty) {
+            studentListUl.innerHTML = '<li class="loading-placeholder">Chưa có học sinh nào trong lớp này.</li>';
+        } else {
+             studentSnapshot.forEach(doc => {
+                const studentData = doc.data();
+                currentStudentsData.push({ id: doc.id, ...studentData });
+                // Truyền toàn bộ studentData vào hàm tạo li
+                const li = createStudentListItem(doc.id, studentData);
+                studentListUl.appendChild(li);
+            });
+        }
+        const selectedDate = attendanceDateInput.value || getCurrentDateString();
+        loadAttendance(classId, selectedDate, currentStudentsData);
+        renderGradebookTable(currentStudentsData, currentGradeColumns);
+
+    }, error => {
+        console.error(`Lỗi tải danh sách học sinh: `, error);
+        displayError(studentError, `Lỗi tải học sinh: ${error.message}`);
+        studentListUl.innerHTML = '<li class="loading-placeholder">Có lỗi xảy ra khi tải danh sách học sinh.</li>';
+        attendanceListUl.innerHTML = '<li class="loading-placeholder">Lỗi tải danh sách học sinh, không thể điểm danh.</li>';
+        gradebookTableContainer.innerHTML = '<p class="loading-placeholder">Lỗi tải danh sách học sinh, không thể hiển thị sổ điểm.</p>';
+    });
+
+    unsubscribeGradeColumns = gradeColsRef.onSnapshot(colsSnapshot => {
+        currentGradeColumns = [];
+        colsSnapshot.forEach(doc => {
+            currentGradeColumns.push({ id: doc.id, ...doc.data() });
+        });
+        renderGradebookTable(currentStudentsData, currentGradeColumns);
+
+    }, error => {
+         console.error(`Lỗi tải cột điểm: `, error);
+         displayError(gradebookError, `Lỗi tải cột điểm: ${error.message}`);
+         gradebookTableContainer.innerHTML = '<p class="loading-placeholder">Có lỗi xảy ra khi tải các cột điểm.</p>';
+    });
+}
+
+/**
+ * Tạo một phần tử list item (li) cho học sinh, bao gồm cả form sửa chi tiết.
+ * @param {string} studentId ID của học sinh
+ * @param {object} studentData Dữ liệu học sinh từ Firestore (bao gồm name, dob, parentContact, notes, grades)
+ * @returns {HTMLLIElement} Phần tử li đã được tạo
+ */
+function createStudentListItem(studentId, studentData) {
+    const li = document.createElement('li');
+    li.dataset.id = studentId;
+
+    const contentDiv = document.createElement('div');
+    contentDiv.classList.add('item-content');
+
+    // --- Phần hiển thị thông tin ---
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = studentData.name;
+    nameSpan.classList.add('item-name');
+    contentDiv.appendChild(nameSpan);
+
+    // (Tùy chọn) Hiển thị thêm chi tiết nhỏ bên cạnh tên
+    // const detailsSpan = document.createElement('span');
+    // detailsSpan.classList.add('student-details');
+    // detailsSpan.textContent = ` (NS: ${studentData.dob || 'N/A'})`; // Ví dụ
+    // contentDiv.appendChild(detailsSpan);
+
+    // --- Form sửa chi tiết (ẩn ban đầu) ---
+    const editForm = document.createElement('form');
+    editForm.classList.add('edit-form');
+    editForm.style.display = 'none';
+
+    // Input cho Tên
+    editForm.innerHTML += `
+        <div class="form-group-inline">
+            <label for="edit-student-name-${studentId}">Tên:</label>
+            <input type="text" id="edit-student-name-${studentId}" value="${studentData.name || ''}" required>
+        </div>
+        <div class="form-group-inline">
+            <label for="edit-student-dob-${studentId}">Ngày sinh:</label>
+            <input type="date" id="edit-student-dob-${studentId}" value="${studentData.dob || ''}">
+        </div>
+        <div class="form-group-inline">
+            <label for="edit-student-contact-${studentId}">ĐT Phụ huynh:</label>
+            <input type="tel" id="edit-student-contact-${studentId}" value="${studentData.parentContact || ''}">
+        </div>
+        <div class="form-group-inline">
+            <label for="edit-student-notes-${studentId}">Ghi chú:</label>
+            <textarea id="edit-student-notes-${studentId}">${studentData.notes || ''}</textarea>
+        </div>
+        <div class="edit-form-buttons">
+             <button type="submit" class="btn btn-success btn-sm">Lưu</button>
+             <button type="button" class="btn btn-secondary btn-sm cancel-edit-student">Hủy</button>
+        </div>
+    `;
+
+    // Gắn sự kiện cho nút Hủy trong form
+    const cancelButton = editForm.querySelector('.cancel-edit-student');
+    cancelButton.addEventListener('click', () => {
+        li.classList.remove('editing');
+        // Không cần ẩn/hiện thủ công vì listener sẽ render lại
+    });
+
+    // Gắn sự kiện submit cho form
+    editForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const updatedDetails = {
+            name: editForm.querySelector(`#edit-student-name-${studentId}`).value.trim(),
+            dob: editForm.querySelector(`#edit-student-dob-${studentId}`).value || null, // Lưu null nếu trống
+            parentContact: editForm.querySelector(`#edit-student-contact-${studentId}`).value.trim() || null,
+            notes: editForm.querySelector(`#edit-student-notes-${studentId}`).value.trim() || null,
+        };
+
+        if (!updatedDetails.name) {
+            alert("Tên học sinh không được để trống.");
+            return;
+        }
+
+        try {
+            await updateStudentDetails(studentId, updatedDetails);
+            cancelButton.click(); // Thoát chế độ sửa (listener sẽ cập nhật UI)
+        } catch (error) {
+            console.error("Lỗi cập nhật thông tin học sinh:", error);
+            alert(`Không thể cập nhật thông tin học sinh: ${error.message}`);
+        }
+    });
+
+    contentDiv.appendChild(editForm);
+    li.appendChild(contentDiv);
+
+    // --- Các nút hành động (Sửa, Xóa) ---
+    const actionsDiv = document.createElement('div');
+    actionsDiv.classList.add('actions');
+
+    const editButton = document.createElement('button');
+    editButton.textContent = 'Sửa';
+    editButton.classList.add('btn', 'btn-warning', 'btn-sm');
+    editButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Đóng tất cả các form sửa khác trước khi mở form này
+        document.querySelectorAll('#student-list li.editing').forEach(otherLi => {
+            if(otherLi !== li) {
+                 otherLi.querySelector('.cancel-edit-student')?.click(); // Giả lập click hủy
+            }
+        });
+        // Mở form sửa này
+        li.classList.add('editing');
+        // Không cần ẩn/hiện thủ công vì CSS xử lý
+        editForm.querySelector('input[type="text"]').focus(); // Focus vào ô tên
+    });
+    actionsDiv.appendChild(editButton);
+
+    const deleteButton = document.createElement('button');
+    deleteButton.textContent = 'Xóa';
+    deleteButton.classList.add('btn', 'btn-danger', 'btn-sm');
+    deleteButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteStudent(studentId, studentData.name);
+    });
+    actionsDiv.appendChild(deleteButton);
+
+    li.appendChild(actionsDiv);
+
+    return li;
+}
+
+
+/**
+ * Cập nhật thông tin chi tiết của học sinh trong Firestore.
+ * @param {string} studentId ID học sinh
+ * @param {object} details Đối tượng chứa các thông tin cần cập nhật (name, dob, parentContact, notes)
+ */
+async function updateStudentDetails(studentId, details) {
+    if (!currentUser || !currentClassId || !studentId || !details) return;
+    const studentRef = db.collection('users').doc(currentUser.uid)
+                       .collection('classes').doc(currentClassId)
+                       .collection('students').doc(studentId);
+    try {
+        // Chỉ cập nhật các trường được cung cấp trong details
+        await studentRef.update(details);
+        console.log(`Đã cập nhật thông tin cho học sinh ${studentId}`);
+    } catch (error) {
+        console.error("Lỗi cập nhật thông tin học sinh:", error);
+        throw error; // Ném lỗi ra để hàm gọi xử lý
+    }
+}
+
+
+async function deleteStudent(studentId, studentName) {
+    if (!currentUser || !currentClassId || !studentId) return;
+    const confirmation = confirm(`Bạn có chắc chắn muốn xóa học sinh "${studentName}" khỏi lớp này không? Điểm và dữ liệu điểm danh của học sinh này cũng sẽ bị xóa.`);
+    if (!confirmation) { console.log("Hủy bỏ thao tác xóa học sinh."); return; }
+
+    console.log(`Bắt đầu xóa học sinh: ${studentName} (ID: ${studentId})`);
+    const studentRef = db.collection('users').doc(currentUser.uid)
+                       .collection('classes').doc(currentClassId)
+                       .collection('students').doc(studentId);
+    try {
+        await studentRef.delete();
+        console.log(`Đã xóa thành công học sinh: ${studentName}`);
+        // Listener của loadStudentsAndGradeColumns sẽ tự động cập nhật UI
+    } catch (error) {
+        console.error(`Lỗi khi xóa học sinh "${studentName}": `, error);
+        displayError(studentError, `Không thể xóa học sinh "${studentName}": ${error.message}`);
+        alert(`Đã xảy ra lỗi khi xóa học sinh "${studentName}". Vui lòng thử lại.`);
+    }
+}
+
+addStudentForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    clearErrors();
+    const studentName = studentNameInput.value.trim();
+    if (!studentName) { displayError(studentError, "Vui lòng nhập tên học sinh."); return; }
+    if (!currentUser || !currentClassId) { displayError(studentError, "Không xác định được người dùng hoặc lớp học hiện tại."); return; }
+
+    db.collection('users').doc(currentUser.uid)
+      .collection('classes').doc(currentClassId)
+      .collection('students').add({
+        name: studentName,
+        dob: null, // Khởi tạo các trường mới
+        parentContact: null,
+        notes: null,
+        grades: {},
+        addedAt: firebase.firestore.FieldValue.serverTimestamp()
+    })
+    .then(() => {
+        console.log(`Đã thêm học sinh "${studentName}" vào lớp ${currentClassId}`);
+        studentNameInput.value = '';
+    })
+    .catch(error => {
+        console.error("Lỗi thêm học sinh: ", error);
+        displayError(studentError, `Không thể thêm học sinh: ${error.message}`);
+    });
+});
+
+// --- QUẢN LÝ ĐIỂM DANH ---
+
+function initializeAttendance() {
+    attendanceDateInput.value = getCurrentDateString();
+    attendanceDateInput.removeEventListener('change', handleDateChange);
+    attendanceDateInput.addEventListener('change', handleDateChange);
+    filterAbsentButton.removeEventListener('click', toggleAbsentFilter);
+    filterAbsentButton.addEventListener('click', toggleAbsentFilter);
+    isFilteringAbsent = false;
+    updateFilterButton();
+    attendanceListUl.classList.remove('filtering-absent');
+}
+
+function handleDateChange() {
+    if (!currentClassId) return;
+    const selectedDate = attendanceDateInput.value;
+    if (selectedDate) {
+        attendanceListUl.innerHTML = '<li class="loading-placeholder">Đang tải điểm danh...</li>';
+         loadAttendance(currentClassId, selectedDate, currentStudentsData);
+    }
+}
+
+function toggleAbsentFilter() {
+    isFilteringAbsent = !isFilteringAbsent;
+    updateFilterButton();
+    applyAttendanceFilter();
+}
+
+function updateFilterButton() {
+     if (isFilteringAbsent) {
+        filterAbsentButton.textContent = 'Hiện tất cả HS';
+        filterAbsentButton.classList.remove('btn-secondary');
+        filterAbsentButton.classList.add('btn-info');
+    } else {
+        filterAbsentButton.textContent = 'Chỉ hiện HS vắng';
+        filterAbsentButton.classList.remove('btn-info');
+        filterAbsentButton.classList.add('btn-secondary');
+    }
+}
+
+function applyAttendanceFilter() {
+     if (isFilteringAbsent) {
+        attendanceListUl.classList.add('filtering-absent');
+    } else {
+        attendanceListUl.classList.remove('filtering-absent');
+    }
+    updateAttendanceInfo();
+}
+
+function updateAttendanceInfo() {
+    // Đếm số li không phải placeholder trong danh sách gốc (chưa lọc)
+    const totalStudents = currentStudentsData.length;
+    // Đếm số li có class 'absent' (đang hiển thị hoặc ẩn)
+    const absentCount = attendanceListUl.querySelectorAll('li.absent').length;
+
+    if (totalStudents > 0) {
+         if (isFilteringAbsent) {
+             displayInfo(attendanceInfo, `Đang hiển thị ${absentCount} học sinh vắng mặt.`);
+         } else {
+             displayInfo(attendanceInfo, `Tổng số: ${totalStudents} học sinh | Vắng mặt: ${absentCount}`);
+         }
+    } else {
+         attendanceInfo.textContent = '';
+    }
+}
+
+
+async function loadAttendance(classId, dateString, students) {
+    if (!currentUser || !classId || !dateString || !students) {
+         attendanceListUl.innerHTML = '<li class="loading-placeholder">Thiếu thông tin để tải điểm danh.</li>';
+         return;
+    }
+    attendanceListUl.innerHTML = '';
+    // Giữ lại lỗi điểm danh nếu có
+    // clearErrors();
+
+    const attendanceDocRef = db.collection('users').doc(currentUser.uid)
+                               .collection('classes').doc(classId)
+                               .collection('attendance').doc(dateString);
+
+    try {
+        const attendanceDoc = await attendanceDocRef.get();
+        const attendanceData = attendanceDoc.exists ? attendanceDoc.data() : { absentStudents: {} };
+        const absentStudentsMap = attendanceData.absentStudents || {};
+
+        if (students.length === 0) {
+            attendanceListUl.innerHTML = '<li class="loading-placeholder">Chưa có học sinh trong lớp để điểm danh.</li>';
+             updateAttendanceInfo();
+            return;
+        }
+
+        students.forEach(student => {
+            const isAbsent = absentStudentsMap[student.id] === true;
+            const li = createAttendanceListItem(student.id, student.name, isAbsent, dateString);
+            attendanceListUl.appendChild(li);
+        });
+        applyAttendanceFilter(); // Áp dụng bộ lọc sau khi render
+
+    } catch (error) {
+        console.error(`Lỗi tải điểm danh ngày ${dateString}: `, error);
+        displayError(attendanceError, `Lỗi tải điểm danh: ${error.message}`);
+        attendanceListUl.innerHTML = '<li class="loading-placeholder">Có lỗi xảy ra khi tải điểm danh.</li>';
+        attendanceInfo.textContent = '';
+    }
+}
+
+function createAttendanceListItem(studentId, studentName, isAbsent, dateString) {
+    const li = document.createElement('li');
+    li.dataset.id = studentId;
+    li.textContent = studentName;
+    li.classList.toggle('absent', isAbsent);
+
+    li.addEventListener('click', () => {
+        if (isFilteringAbsent) {
+            toggleAbsentFilter();
+        }
+        toggleAttendance(studentId, isAbsent, dateString);
+    });
+
+    return li;
+}
+
+async function toggleAttendance(studentId, wasAbsent, dateString) {
+    if (!currentUser || !currentClassId || !studentId || !dateString) return;
+
+    const attendanceDocRef = db.collection('users').doc(currentUser.uid)
+                               .collection('classes').doc(currentClassId)
+                               .collection('attendance').doc(dateString);
+
+    const studentKey = `absentStudents.${studentId}`;
+
+    const listItem = attendanceListUl.querySelector(`li[data-id="${studentId}"]`);
+    if (listItem) {
+        listItem.style.opacity = '0.5';
     }
 
-    .card {
-        padding: 20px;
-    }
 
-    .inline-form {
-        flex-direction: column; /* Chuyển thành cột trên màn hình nhỏ */
-        align-items: stretch; /* Kéo dài các phần tử */
-    }
+    try {
+        if (wasAbsent) {
+            await attendanceDocRef.update({
+                [studentKey]: firebase.firestore.FieldValue.delete()
+            });
+            console.log(`Đã điểm danh CÓ MẶT cho HS ${studentId} ngày ${dateString}`);
+        } else {
+            await attendanceDocRef.set({
+                absentStudents: {
+                    [studentId]: true
+                }
+            }, { merge: true });
+            console.log(`Đã điểm danh VẮNG MẶT cho HS ${studentId} ngày ${dateString}`);
+        }
+         // Chỉ cần load lại điểm danh với danh sách học sinh hiện tại
+         loadAttendance(currentClassId, dateString, currentStudentsData);
 
-    .inline-form input[type="text"] {
-        margin-bottom: 10px; /* Thêm lại margin dưới */
-        min-width: unset; /* Bỏ min-width trên mobile */
+    } catch (error) {
+        console.error(`Lỗi cập nhật điểm danh cho HS ${studentId} ngày ${dateString}: `, error);
+        displayError(attendanceError, `Lỗi cập nhật điểm danh: ${error.message}`);
+        alert("Có lỗi xảy ra khi cập nhật điểm danh, vui lòng thử lại.");
+         // Khôi phục giao diện nếu lỗi
+         if (listItem) {
+             listItem.style.opacity = '1';
+             loadAttendance(currentClassId, dateString, currentStudentsData); // Load lại
+         }
     }
+}
 
-    .inline-form button {
-        width: 100%; /* Nút chiếm toàn bộ chiều rộng */
-         margin-right: 0; /* Bỏ margin phải */
-    }
+// --- QUẢN LÝ SỔ ĐIỂM ---
 
-     .header {
-        flex-direction: column;
-        align-items: flex-start; /* Căn trái các phần tử header */
-        gap: 10px;
-    }
-     .user-info {
-        width: 100%;
-        justify-content: space-between; /* Đẩy nút logout sang phải */
-    }
-
-    .item-list li .item-name {
-        /* Có thể cho phép xuống dòng tên trên mobile nếu cần */
-        /* white-space: normal; */
-    }
-
-    /* Responsive cho form sửa học sinh */
-    .item-list li .edit-form .form-group-inline {
-        flex-direction: column; /* Chuyển thành cột */
-        align-items: stretch; /* Kéo dài */
-        gap: 5px;
-    }
-    .item-list li .edit-form .form-group-inline label {
-        text-align: left; /* Căn trái label */
-        flex-basis: auto; /* Bỏ chiều rộng cố định */
-    }
-
-
-     .attendance-controls {
-        flex-direction: column;
-        align-items: stretch;
-     }
-     .attendance-controls input[type="date"] {
-         max-width: none; /* Bỏ giới hạn max-width trên mobile */
-         margin-bottom: 10px; /* Thêm khoảng cách dưới */
-     }
-     .attendance-controls button {
-         margin-left: 0; /* Bỏ margin trái tự động */
-         width: 100%; /* Nút chiếm hết chiều rộng */
-     }
-
-     /* Responsive cho bảng điểm */
-     .gradebook-table thead th,
-     .gradebook-table tbody th {
-         /* Giảm kích thước font trên mobile nếu cần */
-         /* font-size: 0.9rem; */
-     }
-     .gradebook-table tbody th {
-         min-width: 120px; /* Giảm chiều rộng tối thiểu cột tên HS */
-     }
-     .grade-input {
-         max-width: 60px; /* Giảm chiều rộng ô điểm */
-     }
+function initializeGradebook() {
+    addGradeColumnButton.removeEventListener('click', handleAddGradeColumn);
+    addGradeColumnButton.addEventListener('click', handleAddGradeColumn);
+    gradebookTableContainer.removeEventListener('change', handleGradeInputChange);
+    gradebookTableContainer.addEventListener('change', handleGradeInputChange);
+    // Thêm listener cho nút xóa cột điểm (dùng event delegation)
+    gradebookTableContainer.removeEventListener('click', handleDeleteGradeColumnClick);
+    gradebookTableContainer.addEventListener('click', handleDeleteGradeColumnClick);
 
 }
+
+async function handleAddGradeColumn() {
+    if (!currentUser || !currentClassId) return;
+
+    const columnName = prompt("Nhập tên cột điểm mới (ví dụ: Kiểm tra 15 phút, Giữa kỳ):");
+    if (columnName && columnName.trim()) {
+        const trimmedName = columnName.trim();
+        try {
+            await db.collection('users').doc(currentUser.uid)
+                    .collection('classes').doc(currentClassId)
+                    .collection('gradeColumns').add({
+                        name: trimmedName,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+            console.log(`Đã thêm cột điểm: ${trimmedName}`);
+        } catch (error) {
+            console.error("Lỗi thêm cột điểm:", error);
+            displayError(gradebookError, `Không thể thêm cột điểm: ${error.message}`);
+            alert("Có lỗi xảy ra khi thêm cột điểm.");
+        }
+    } else if (columnName !== null) {
+        alert("Tên cột điểm không được để trống.");
+    }
+}
+
+
+function renderGradebookTable(students, columns) {
+    gradebookTableContainer.innerHTML = '';
+    if (!students || columns === undefined) {
+         gradebookTableContainer.innerHTML = '<p class="loading-placeholder">Đang tải dữ liệu sổ điểm...</p>';
+         return;
+    }
+
+    if (students.length === 0) {
+        gradebookTableContainer.innerHTML = '<p class="loading-placeholder">Chưa có học sinh để hiển thị sổ điểm.</p>';
+        return;
+    }
+
+    const table = document.createElement('table');
+    table.classList.add('gradebook-table');
+
+    const thead = table.createTHead();
+    const headerRow = thead.insertRow();
+    const thStudent = document.createElement('th');
+    thStudent.textContent = 'Học sinh';
+    headerRow.appendChild(thStudent);
+
+    columns.forEach(col => {
+        const thCol = document.createElement('th');
+        thCol.dataset.columnId = col.id; // Lưu ID cột
+
+        // Span chứa tên cột
+        const colNameSpan = document.createElement('span');
+        colNameSpan.textContent = col.name;
+        thCol.appendChild(colNameSpan);
+
+        // Nút xóa cột điểm (MỚI)
+        const deleteColBtn = document.createElement('button');
+        deleteColBtn.innerHTML = '&times;'; // Dấu 'x'
+        deleteColBtn.classList.add('btn-icon-danger', 'delete-column-btn');
+        deleteColBtn.title = `Xóa cột điểm "${col.name}"`; // Tooltip
+        deleteColBtn.dataset.columnId = col.id; // Lưu ID cột vào nút
+        deleteColBtn.dataset.columnName = col.name; // Lưu tên cột vào nút
+        thCol.appendChild(deleteColBtn);
+
+        headerRow.appendChild(thCol);
+    });
+
+    const tbody = table.createTBody();
+    students.forEach(student => {
+        const tr = tbody.insertRow();
+        const thName = document.createElement('th');
+        thName.textContent = student.name;
+        tr.appendChild(thName);
+
+        columns.forEach(col => {
+            const td = tr.insertCell();
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.classList.add('grade-input');
+            input.dataset.studentId = student.id;
+            input.dataset.columnId = col.id;
+            input.min = 0;
+            input.max = 10;
+            input.step = 0.1;
+
+            const currentGrade = student.grades && student.grades[col.id] !== undefined
+                               ? student.grades[col.id]
+                               : '';
+            input.value = currentGrade;
+
+            td.appendChild(input);
+        });
+    });
+
+    gradebookTableContainer.appendChild(table);
+}
+
+/**
+ * Xử lý sự kiện click trên container bảng điểm, kiểm tra nút xóa cột điểm. (MỚI)
+ * @param {Event} e Sự kiện click
+ */
+function handleDeleteGradeColumnClick(e) {
+    if (e.target.classList.contains('delete-column-btn')) {
+        const button = e.target;
+        const columnId = button.dataset.columnId;
+        const columnName = button.dataset.columnName;
+        if (columnId && columnName) {
+            deleteGradeColumn(columnId, columnName);
+        }
+    }
+}
+
+/**
+ * Hàm xóa một cột điểm và điểm tương ứng của học sinh. (MỚI)
+ * @param {string} columnId ID cột điểm
+ * @param {string} columnName Tên cột điểm
+ */
+async function deleteGradeColumn(columnId, columnName) {
+    if (!currentUser || !currentClassId || !columnId) return;
+
+    const confirmation = confirm(`Bạn có chắc chắn muốn xóa cột điểm "${columnName}" không? Hành động này sẽ xóa điểm của TẤT CẢ học sinh trong cột này và không thể hoàn tác.`);
+    if (!confirmation) { console.log("Hủy bỏ thao tác xóa cột điểm."); return; }
+
+    console.log(`Bắt đầu xóa cột điểm: ${columnName} (ID: ${columnId})`);
+    const columnRef = db.collection('users').doc(currentUser.uid)
+                      .collection('classes').doc(currentClassId)
+                      .collection('gradeColumns').doc(columnId);
+    const studentsRef = db.collection('users').doc(currentUser.uid)
+                      .collection('classes').doc(currentClassId)
+                      .collection('students');
+
+    try {
+        // 1. Xóa điểm của cột này khỏi tất cả học sinh
+        const studentSnapshot = await studentsRef.get();
+        if (!studentSnapshot.empty) {
+            console.log(`Chuẩn bị xóa điểm cột ${columnId} khỏi ${studentSnapshot.size} học sinh...`);
+            const batch = db.batch();
+            const gradeKeyToDelete = `grades.${columnId}`;
+            studentSnapshot.forEach(doc => {
+                // Chỉ update nếu học sinh có field grades
+                if (doc.data().grades) {
+                     batch.update(doc.ref, { [gradeKeyToDelete]: firebase.firestore.FieldValue.delete() });
+                }
+            });
+            await batch.commit();
+            console.log("Đã xóa điểm của cột khỏi học sinh.");
+        }
+
+        // 2. Xóa tài liệu cột điểm
+        await columnRef.delete();
+        console.log(`Đã xóa thành công cột điểm: ${columnName}`);
+        // Listener của loadStudentsAndGradeColumns sẽ tự cập nhật bảng
+
+    } catch (error) {
+        console.error(`Lỗi khi xóa cột điểm "${columnName}": `, error);
+        displayError(gradebookError, `Không thể xóa cột điểm "${columnName}": ${error.message}`);
+        alert(`Đã xảy ra lỗi khi xóa cột điểm "${columnName}". Vui lòng thử lại.`);
+    }
+}
+
+
+function handleGradeInputChange(e) {
+    if (e.target.classList.contains('grade-input')) {
+        const input = e.target;
+        const studentId = input.dataset.studentId;
+        const columnId = input.dataset.columnId;
+        let score = input.value.trim();
+
+        if (!studentId || !columnId) return;
+
+        let scoreToSave;
+        if (score === '') {
+            scoreToSave = firebase.firestore.FieldValue.delete();
+        } else {
+            const numericScore = parseFloat(score);
+            if (!isNaN(numericScore)) {
+                 scoreToSave = Math.round(numericScore * 10) / 10;
+                 if (scoreToSave < 0) scoreToSave = 0;
+                 if (scoreToSave > 10) scoreToSave = 10;
+                 if (input.value !== String(scoreToSave)) { // Chỉ cập nhật nếu giá trị thay đổi sau khi làm tròn/giới hạn
+                    input.value = scoreToSave;
+                 }
+            } else {
+                 input.value = '';
+                 scoreToSave = firebase.firestore.FieldValue.delete();
+                 displayError(gradebookError, "Vui lòng nhập điểm là số.");
+                 setTimeout(() => clearErrors(), 3000);
+                 return; // Dừng lại nếu nhập không phải số
+            }
+        }
+        saveGrade(studentId, columnId, scoreToSave);
+    }
+}
+
+async function saveGrade(studentId, columnId, score) {
+    if (!currentUser || !currentClassId || !studentId || !columnId) return;
+
+    const studentRef = db.collection('users').doc(currentUser.uid)
+                       .collection('classes').doc(currentClassId)
+                       .collection('students').doc(studentId);
+
+    const gradeKey = `grades.${columnId}`;
+
+    try {
+        await studentRef.update({
+            [gradeKey]: score
+        });
+        console.log(`Đã lưu điểm cho HS ${studentId}, cột ${columnId}: ${score === firebase.firestore.FieldValue.delete() ? '(đã xóa)' : score}`);
+        displayError(gradebookError, "");
+    } catch (error) {
+        console.error("Lỗi lưu điểm:", error);
+        displayError(gradebookError, `Lỗi lưu điểm: ${error.message}`);
+    }
+}
+
+
+// --- XỬ LÝ NÚT QUAY LẠI ---
+backToDashboardButton.addEventListener('click', () => {
+    if (unsubscribeStudents) unsubscribeStudents();
+    if (unsubscribeGradeColumns) unsubscribeGradeColumns();
+    unsubscribeStudents = null;
+    unsubscribeGradeColumns = null;
+    currentClassId = null;
+    studentListUl.innerHTML = '';
+    attendanceListUl.innerHTML = '';
+    gradebookTableContainer.innerHTML = '';
+    clearErrors();
+    isFilteringAbsent = false;
+    showView('dashboard-view');
+});
+
+// --- KHỞI CHẠY BAN ĐẦU ---
+console.log("Ứng dụng đã sẵn sàng.");
