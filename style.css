@@ -94,6 +94,9 @@ input[type="password"]:focus {
     transition: background-color 0.2s ease, box-shadow 0.2s ease;
     margin-right: 8px;
     margin-bottom: 8px; /* Thêm khoảng cách dưới cho nút */
+    /* Thêm thuộc tính để các nút trên cùng dòng căn chỉnh tốt hơn */
+    vertical-align: middle;
+    line-height: 1.5; /* Đảm bảo chiều cao ổn định */
 }
 
 .btn-primary {
@@ -124,9 +127,22 @@ input[type="password"]:focus {
     background-color: #218838;
 }
 
+/* Thêm kiểu cho nút xóa */
+.btn-danger {
+    background-color: #dc3545; /* Màu đỏ */
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+
 .btn-sm {
-    padding: 6px 12px;
-    font-size: 0.9rem;
+    padding: 5px 10px; /* Giảm padding cho nút nhỏ */
+    font-size: 0.875rem; /* Giảm cỡ chữ */
+    line-height: 1.4; /* Điều chỉnh line-height cho phù hợp */
+    margin-left: 5px; /* Thêm khoảng cách trái */
 }
 
 .btn-link {
@@ -149,11 +165,17 @@ input[type="password"]:focus {
     align-items: center; /* Căn giữa các item theo chiều dọc */
     gap: 10px; /* Khoảng cách giữa các phần tử */
     margin-bottom: 15px;
+    flex-wrap: wrap; /* Cho phép xuống dòng nếu không đủ chỗ */
 }
 
 .inline-form input[type="text"] {
     flex-grow: 1; /* Cho phép input chiếm không gian còn lại */
     margin-bottom: 0; /* Bỏ margin dưới khi nằm trên hàng */
+    min-width: 150px; /* Đặt chiều rộng tối thiểu */
+}
+
+.inline-form button {
+     flex-shrink: 0; /* Ngăn nút bị co lại */
 }
 
 /* Thông báo lỗi */
@@ -171,6 +193,7 @@ input[type="password"]:focus {
     align-items: center; /* Căn giữa theo chiều dọc */
     margin-bottom: 15px;
     flex-wrap: wrap; /* Cho phép xuống dòng trên màn hình nhỏ */
+    gap: 10px; /* Thêm khoảng cách giữa các phần tử header */
 }
 
 .user-info {
@@ -179,6 +202,7 @@ input[type="password"]:focus {
     display: flex;
     align-items: center;
     gap: 10px; /* Khoảng cách giữa text và nút logout */
+    flex-shrink: 0; /* Ngăn co lại */
 }
 
 /* Danh sách */
@@ -194,19 +218,34 @@ input[type="password"]:focus {
     margin-bottom: 8px;
     border-radius: 5px;
     border: 1px solid #e9ecef;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: flex; /* Sử dụng flexbox để căn chỉnh tên và nút */
+    justify-content: space-between; /* Đẩy tên và nút ra hai bên */
+    align-items: center; /* Căn giữa theo chiều dọc */
     transition: background-color 0.2s ease;
 }
 
-.item-list li.class-item { /* Thêm class riêng cho item lớp để có thể click */
+.item-list li .item-name { /* Thêm class cho tên để dễ quản lý */
+    flex-grow: 1; /* Cho phép tên chiếm không gian */
+    margin-right: 10px; /* Khoảng cách với nút bên phải */
+    overflow: hidden; /* Ẩn phần tên quá dài */
+    text-overflow: ellipsis; /* Hiển thị dấu ... nếu tên quá dài */
+    white-space: nowrap; /* Ngăn tên xuống dòng */
+}
+
+.item-list li.class-item .item-name { /* Thêm class riêng cho item lớp để có thể click */
      cursor: pointer;
 }
 
 .item-list li.class-item:hover {
      background-color: #e9ecef; /* Đổi màu nền khi hover */
 }
+
+.item-list li .actions { /* Container cho các nút hành động */
+    flex-shrink: 0; /* Ngăn container nút bị co lại */
+    display: flex;
+    gap: 5px; /* Khoảng cách giữa các nút (nếu có nhiều nút sau này) */
+}
+
 
 .loading-placeholder {
     color: #6c757d;
@@ -239,10 +278,12 @@ hr {
 
     .inline-form input[type="text"] {
         margin-bottom: 10px; /* Thêm lại margin dưới */
+        min-width: unset; /* Bỏ min-width trên mobile */
     }
 
     .inline-form button {
         width: 100%; /* Nút chiếm toàn bộ chiều rộng */
+         margin-right: 0; /* Bỏ margin phải */
     }
 
      .header {
@@ -253,5 +294,10 @@ hr {
      .user-info {
         width: 100%;
         justify-content: space-between; /* Đẩy nút logout sang phải */
+    }
+
+    .item-list li .item-name {
+        /* Có thể cho phép xuống dòng tên trên mobile nếu cần */
+        /* white-space: normal; */
     }
 }
