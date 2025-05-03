@@ -67,6 +67,8 @@ input[type="text"],
 input[type="email"],
 input[type="password"],
 input[type="date"],
+input[type="tel"], /* Thêm kiểu cho tel */
+textarea, /* Thêm kiểu cho textarea */
 input[type="number"] { /* Thêm input number */
     width: 100%; /* Chiếm toàn bộ chiều rộng */
     padding: 12px 15px;
@@ -79,10 +81,18 @@ input[type="number"] { /* Thêm input number */
     font-family: inherit;
 }
 
+textarea {
+    min-height: 80px; /* Chiều cao tối thiểu cho ghi chú */
+    resize: vertical; /* Cho phép thay đổi chiều cao dọc */
+}
+
+
 input[type="text"]:focus,
 input[type="email"]:focus,
 input[type="password"]:focus,
 input[type="date"]:focus,
+input[type="tel"]:focus,
+textarea:focus,
 input[type="number"]:focus { /* Thêm input number */
     border-color: #007bff; /* Đổi màu viền khi focus */
     outline: none; /* Bỏ viền focus mặc định */
@@ -187,6 +197,10 @@ input[type="number"]:focus { /* Thêm input number */
     margin-left: 5px; /* Thêm khoảng cách trái */
 }
 
+/* Không cần nút xóa icon trong phiên bản này */
+/* .btn-icon-danger { ... } */
+
+
 .btn-link {
     background: none;
     border: none;
@@ -278,7 +292,8 @@ input[type="number"]:focus { /* Thêm input number */
     flex-grow: 1; /* Chiếm không gian */
     margin-right: 10px; /* Khoảng cách với nút */
     display: flex; /* Dùng flex để chứa tên hoặc form sửa */
-    align-items: center;
+    align-items: center; /* Căn giữa các phần tử con */
+    flex-wrap: wrap; /* Cho phép xuống dòng nếu cần */
 }
 
 
@@ -288,7 +303,20 @@ input[type="number"]:focus { /* Thêm input number */
     text-overflow: ellipsis; /* Hiển thị dấu ... nếu tên quá dài */
     white-space: nowrap; /* Ngăn tên xuống dòng */
     display: inline-block; /* Để hoạt động đúng với flex */
+    font-weight: 500; /* Tên đậm hơn chút */
+    margin-right: 10px; /* Khoảng cách với chi tiết (nếu có) */
 }
+/* Hiển thị thông tin chi tiết học sinh */
+.item-list li .student-details {
+    font-size: 0.85em;
+    color: #6c757d;
+    margin-left: 5px; /* Khoảng cách với tên */
+    white-space: nowrap; /* Không xuống dòng */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block; /* Hiện mặc định */
+}
+
 
 .item-list li.class-item .item-name { /* Thêm class riêng cho item lớp để có thể click */
      cursor: pointer;
@@ -307,23 +335,53 @@ input[type="number"]:focus { /* Thêm input number */
 .item-list li .edit-form { /* Kiểu cho form sửa inline */
     display: none; /* Ẩn ban đầu */
     flex-grow: 1;
+    /* display: flex; */ /* Bỏ flex ở đây */
+    /* align-items: center; */
+    /* gap: 5px; */
+    width: 100%; /* Chiếm toàn bộ chiều rộng của contentDiv */
+    padding: 10px 0 5px 0; /* Thêm padding cho form sửa */
+    border-top: 1px dashed #ccc; /* Phân cách nhẹ với tên */
+    margin-top: 10px; /* Khoảng cách với tên */
+}
+
+/* Kiểu cho các trường trong form sửa học sinh */
+.edit-form .form-group-inline {
     display: flex;
     align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    width: 100%;
+}
+.edit-form .form-group-inline label {
+    flex-basis: 100px; /* Chiều rộng cố định cho label */
+    flex-shrink: 0;
+    text-align: right;
+    font-size: 0.9em;
+    color: #555;
+    margin-bottom: 0; /* Bỏ margin dưới của label */
+}
+.edit-form .form-group-inline input,
+.edit-form .form-group-inline textarea {
+    flex-grow: 1; /* Input/textarea chiếm không gian còn lại */
+    padding: 5px 8px;
+    font-size: 0.95rem;
+    margin-bottom: 0;
+}
+.edit-form .edit-form-buttons {
+    display: flex;
+    justify-content: flex-end; /* Đẩy nút sang phải */
     gap: 5px;
+    margin-top: 10px;
+    width: 100%;
 }
 
-.item-list li .edit-form input[type="text"] {
-    flex-grow: 1;
-    padding: 5px 8px; /* Giảm padding cho input inline */
-    font-size: 0.95rem; /* Giảm cỡ chữ chút */
-    margin-bottom: 0; /* Bỏ margin dưới */
-}
 
-.item-list li.editing .item-content .item-name {
-    display: none; /* Ẩn tên khi đang sửa */
+.item-list li.editing .item-content .item-name,
+.item-list li.editing .item-content .student-details {
+    display: none; /* Ẩn tên và chi tiết khi đang sửa */
 }
 .item-list li.editing .item-content .edit-form {
-    display: flex; /* Hiện form sửa khi đang sửa */
+    display: block; /* Hiện form sửa khi đang sửa (dạng block để các group inline hoạt động) */
 }
 .item-list li.editing .actions {
     display: none; /* Ẩn nút Sửa/Xóa khi đang sửa */
@@ -429,6 +487,9 @@ hr {
     z-index: 1; /* Đảm bảo header nằm trên nội dung */
     white-space: nowrap; /* Không xuống dòng tên cột */
 }
+/* Không cần nút xóa cột điểm trong phiên bản này */
+/* .gradebook-table thead th .delete-column-btn { ... } */
+
 
 .gradebook-table tbody th { /* Kiểu cho cột tên học sinh */
     font-weight: 500;
@@ -488,18 +549,17 @@ hr {
         /* white-space: normal; */
     }
 
-    .item-list li .edit-form {
-        flex-direction: column; /* Chuyển form sửa thành cột */
-        align-items: stretch;
+    /* Responsive cho form sửa học sinh */
+    .item-list li .edit-form .form-group-inline {
+        flex-direction: column; /* Chuyển thành cột */
+        align-items: stretch; /* Kéo dài */
+        gap: 5px;
     }
-    .item-list li .edit-form input[type="text"] {
-         margin-bottom: 5px; /* Thêm khoảng cách dưới cho input */
+    .item-list li .edit-form .form-group-inline label {
+        text-align: left; /* Căn trái label */
+        flex-basis: auto; /* Bỏ chiều rộng cố định */
     }
-     .item-list li .edit-form .btn {
-         width: 100%; /* Nút chiếm hết chiều rộng */
-         margin-left: 0; /* Bỏ margin trái */
-         margin-right: 0;
-     }
+
 
      .attendance-controls {
         flex-direction: column;
