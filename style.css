@@ -66,7 +66,8 @@ body {
 input[type="text"],
 input[type="email"],
 input[type="password"],
-input[type="date"] { /* Thêm input date */
+input[type="date"],
+input[type="number"] { /* Thêm input number */
     width: 100%; /* Chiếm toàn bộ chiều rộng */
     padding: 12px 15px;
     border: 1px solid #ccc;
@@ -81,10 +82,27 @@ input[type="date"] { /* Thêm input date */
 input[type="text"]:focus,
 input[type="email"]:focus,
 input[type="password"]:focus,
-input[type="date"]:focus { /* Thêm input date */
+input[type="date"]:focus,
+input[type="number"]:focus { /* Thêm input number */
     border-color: #007bff; /* Đổi màu viền khi focus */
     outline: none; /* Bỏ viền focus mặc định */
 }
+
+/* Kiểu riêng cho input điểm trong bảng */
+.grade-input {
+    padding: 6px 8px; /* Giảm padding */
+    font-size: 0.95rem; /* Giảm cỡ chữ */
+    text-align: center; /* Căn giữa điểm */
+    max-width: 70px; /* Giới hạn chiều rộng ô điểm */
+    /* Loại bỏ mũi tên lên xuống của input number (tuỳ trình duyệt) */
+    -moz-appearance: textfield;
+}
+.grade-input::-webkit-outer-spin-button,
+.grade-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
 
 /* Kiểu cho các nút bấm */
 .btn {
@@ -149,6 +167,16 @@ input[type="date"]:focus { /* Thêm input date */
 
 .btn-warning:hover {
     background-color: #e0a800;
+}
+
+/* Thêm kiểu cho nút info (dùng cho nút lọc) */
+.btn-info {
+    background-color: #17a2b8; /* Xanh lam */
+    color: white;
+}
+
+.btn-info:hover {
+    background-color: #117a8b;
 }
 
 
@@ -364,9 +392,55 @@ hr {
     background-color: #f1c6cb; /* Đậm hơn khi hover */
 }
 
-/* Kiểu để ẩn học sinh khi lọc (MỚI) */
+/* Kiểu để ẩn học sinh khi lọc */
 .attendance-list.filtering-absent li:not(.absent) {
     display: none;
+}
+
+/* --- Kiểu cho Phần Sổ điểm --- */
+.gradebook-controls {
+    margin-bottom: 15px;
+}
+
+.table-responsive {
+    overflow-x: auto; /* Cho phép cuộn ngang nếu bảng quá rộng */
+    margin-top: 15px;
+}
+
+.gradebook-table {
+    width: 100%;
+    border-collapse: collapse; /* Gộp đường viền */
+    min-width: 600px; /* Đặt chiều rộng tối thiểu để tránh quá hẹp */
+}
+
+.gradebook-table th,
+.gradebook-table td {
+    border: 1px solid #dee2e6; /* Viền xám nhạt */
+    padding: 8px 10px; /* Padding cho ô */
+    text-align: left; /* Căn trái mặc định */
+    vertical-align: middle; /* Căn giữa theo chiều dọc */
+}
+
+.gradebook-table thead th {
+    background-color: #e9ecef; /* Nền xám nhạt cho header */
+    font-weight: 600; /* Chữ đậm */
+    position: sticky; /* Giữ header cố định khi cuộn dọc */
+    top: 0; /* Vị trí cố định ở trên cùng */
+    z-index: 1; /* Đảm bảo header nằm trên nội dung */
+    white-space: nowrap; /* Không xuống dòng tên cột */
+}
+
+.gradebook-table tbody th { /* Kiểu cho cột tên học sinh */
+    font-weight: 500;
+    background-color: #f8f9fa; /* Nền khác biệt chút */
+    position: sticky; /* Giữ cột tên HS cố định khi cuộn ngang */
+    left: 0; /* Vị trí cố định bên trái */
+    z-index: 0; /* Nằm dưới header cột */
+    min-width: 150px; /* Đảm bảo đủ rộng */
+}
+
+.gradebook-table td {
+    text-align: center; /* Căn giữa ô điểm */
 }
 
 
@@ -436,4 +510,18 @@ hr {
          margin-left: 0; /* Bỏ margin trái tự động */
          width: 100%; /* Nút chiếm hết chiều rộng */
      }
+
+     /* Responsive cho bảng điểm */
+     .gradebook-table thead th,
+     .gradebook-table tbody th {
+         /* Giảm kích thước font trên mobile nếu cần */
+         /* font-size: 0.9rem; */
+     }
+     .gradebook-table tbody th {
+         min-width: 120px; /* Giảm chiều rộng tối thiểu cột tên HS */
+     }
+     .grade-input {
+         max-width: 60px; /* Giảm chiều rộng ô điểm */
+     }
+
 }
