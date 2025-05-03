@@ -63,7 +63,7 @@ const attendanceError = document.getElementById('attendance-error');
 const filterAbsentButton = document.getElementById('filter-absent-button');
 const attendanceInfo = document.getElementById('attendance-info');
 
-// Gradebook Elements (MỚI)
+// Gradebook Elements
 const gradebookSection = document.getElementById('gradebook-section');
 const addGradeColumnButton = document.getElementById('add-grade-column-button');
 const gradebookTableContainer = document.getElementById('gradebook-table-container');
@@ -74,11 +74,11 @@ const gradebookError = document.getElementById('gradebook-error');
 let currentUser = null;
 let currentClassId = null;
 let unsubscribeClasses = null;
-let unsubscribeStudents = null; // Listener cho cả quản lý HS và điểm danh
-let unsubscribeGradeColumns = null; // Listener cho cột điểm (MỚI)
-let isFilteringAbsent = false; // Trạng thái lọc điểm danh MỚI
-let currentStudentsData = []; // Lưu trữ danh sách học sinh hiện tại (MỚI)
-let currentGradeColumns = []; // Lưu trữ danh sách cột điểm hiện tại (MỚI)
+let unsubscribeStudents = null;
+let unsubscribeGradeColumns = null;
+let isFilteringAbsent = false;
+let currentStudentsData = [];
+let currentGradeColumns = [];
 
 
 // --- HÀM TIỆN ÍCH ---
@@ -99,8 +99,8 @@ function clearErrors() {
     classError.textContent = '';
     studentError.textContent = '';
     attendanceError.textContent = '';
-    attendanceInfo.textContent = ''; // Xóa cả thông tin điểm danh
-    gradebookError.textContent = ''; // Thêm xóa lỗi sổ điểm
+    attendanceInfo.textContent = '';
+    gradebookError.textContent = '';
 }
 
 function displayError(element, message) {
@@ -111,7 +111,7 @@ function displayError(element, message) {
     }
 }
 
-function displayInfo(element, message) { // Hàm hiển thị thông tin
+function displayInfo(element, message) {
     if (element) {
         element.textContent = message;
     } else {
@@ -140,20 +140,20 @@ auth.onAuthStateChanged(user => {
         currentUser = null;
         if (unsubscribeClasses) unsubscribeClasses();
         if (unsubscribeStudents) unsubscribeStudents();
-        if (unsubscribeGradeColumns) unsubscribeGradeColumns(); // Dừng nghe cột điểm
+        if (unsubscribeGradeColumns) unsubscribeGradeColumns();
         unsubscribeClasses = null;
         unsubscribeStudents = null;
-        unsubscribeGradeColumns = null; // Reset listener cột điểm
+        unsubscribeGradeColumns = null;
         classListUl.innerHTML = '';
         studentListUl.innerHTML = '';
         attendanceListUl.innerHTML = '';
-        gradebookTableContainer.innerHTML = ''; // Xóa bảng điểm
+        gradebookTableContainer.innerHTML = '';
         loginForm.reset();
         registerForm.reset();
         showView('auth-view');
         registerForm.style.display = 'none';
         loginForm.style.display = 'block';
-        isFilteringAbsent = false; // Reset trạng thái lọc khi logout
+        isFilteringAbsent = false;
     }
 });
 
@@ -483,8 +483,8 @@ function loadStudentsAndGradeColumns(classId) {
              studentSnapshot.forEach(doc => {
                 const studentData = doc.data();
                 currentStudentsData.push({ id: doc.id, ...studentData });
-                // Chỉ truyền tên vào hàm tạo li cũ
-                const li = createStudentListItem(doc.id, studentData.name);
+                // Truyền toàn bộ studentData vào hàm tạo li
+                const li = createStudentListItem(doc.id, studentData);
                 studentListUl.appendChild(li);
             });
         }
@@ -514,68 +514,112 @@ function loadStudentsAndGradeColumns(classId) {
     });
 }
 
-// Phiên bản cũ của createStudentListItem (chỉ có tên)
-function createStudentListItem(studentId, studentName) {
+/**
+ * Tạo một phần tử list item (li) cho học sinh, bao gồm cả form sửa chi tiết.
+ * @param {string} studentId ID của học sinh
+ * @param {object} studentData Dữ liệu học sinh từ Firestore (bao gồm name, dob, parentContact, notes, grades)
+ * @returns {HTMLLIElement} Phần tử li đã được tạo
+ */
+function createStudentListItem(studentId, studentData) {
     const li = document.createElement('li');
     li.dataset.id = studentId;
 
     const contentDiv = document.createElement('div');
     contentDiv.classList.add('item-content');
 
+    // --- Phần hiển thị thông tin ---
     const nameSpan = document.createElement('span');
-    nameSpan.textContent = studentName;
+    nameSpan.textContent = studentData.name;
     nameSpan.classList.add('item-name');
     contentDiv.appendChild(nameSpan);
 
+    // Hiển thị thêm chi tiết nhỏ bên cạnh tên (SỬA ĐỔI Ở ĐÂY)
+    const detailsSpan = document.createElement('span');
+    detailsSpan.classList.add('student-details');
+    // Ví dụ: Hiển thị ngày sinh nếu có
+    let detailText = '';
+    if (studentData.dob) {
+        // Định dạng lại ngày sinh nếu cần (ví dụ: DD/MM/YYYY)
+        try {
+            const [year, month, day] = studentData.dob.split('-');
+            detailText += ` (NS: ${day}/${month}/${year})`;
+        } catch (e) {
+            detailText += ` (NS: ${studentData.dob})`; // Hiển thị nguyên gốc nếu lỗi định dạng
+        }
+    }
+    // Thêm thông tin khác nếu muốn, ví dụ:
+    // if (studentData.parentContact) {
+    //     detailText += ` - ĐT: ${studentData.parentContact}`;
+    // }
+    detailsSpan.textContent = detailText;
+    detailsSpan.style.display = detailText ? 'inline-block' : 'none'; // Chỉ hiện nếu có nội dung
+    contentDiv.appendChild(detailsSpan);
+
+
+    // --- Form sửa chi tiết (ẩn ban đầu) ---
     const editForm = document.createElement('form');
     editForm.classList.add('edit-form');
     editForm.style.display = 'none';
 
-    const editInput = document.createElement('input');
-    editInput.type = 'text';
-    editInput.value = studentName;
-    editInput.required = true;
-    editForm.appendChild(editInput);
+    // Input cho Tên
+    editForm.innerHTML += `
+        <div class="form-group-inline">
+            <label for="edit-student-name-${studentId}">Tên:</label>
+            <input type="text" id="edit-student-name-${studentId}" value="${studentData.name || ''}" required>
+        </div>
+        <div class="form-group-inline">
+            <label for="edit-student-dob-${studentId}">Ngày sinh:</label>
+            <input type="date" id="edit-student-dob-${studentId}" value="${studentData.dob || ''}">
+        </div>
+        <div class="form-group-inline">
+            <label for="edit-student-contact-${studentId}">ĐT Phụ huynh:</label>
+            <input type="tel" id="edit-student-contact-${studentId}" value="${studentData.parentContact || ''}">
+        </div>
+        <div class="form-group-inline">
+            <label for="edit-student-notes-${studentId}">Ghi chú:</label>
+            <textarea id="edit-student-notes-${studentId}">${studentData.notes || ''}</textarea>
+        </div>
+        <div class="edit-form-buttons">
+             <button type="submit" class="btn btn-success btn-sm">Lưu</button>
+             <button type="button" class="btn btn-secondary btn-sm cancel-edit-student">Hủy</button>
+        </div>
+    `;
 
-    const saveButton = document.createElement('button');
-    saveButton.type = 'submit';
-    saveButton.textContent = 'Lưu';
-    saveButton.classList.add('btn', 'btn-success', 'btn-sm');
-    editForm.appendChild(saveButton);
-
-    const cancelButton = document.createElement('button');
-    cancelButton.type = 'button';
-    cancelButton.textContent = 'Hủy';
-    cancelButton.classList.add('btn', 'btn-secondary', 'btn-sm');
+    // Gắn sự kiện cho nút Hủy trong form
+    const cancelButton = editForm.querySelector('.cancel-edit-student');
     cancelButton.addEventListener('click', () => {
         li.classList.remove('editing');
-        nameSpan.style.display = '';
-        editForm.style.display = 'none';
-        actionsDiv.style.display = '';
+        // CSS sẽ tự động ẩn form và hiện lại tên/chi tiết
     });
-    editForm.appendChild(cancelButton);
 
-     editForm.addEventListener('submit', async (e) => {
+    // Gắn sự kiện submit cho form
+    editForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const newName = editInput.value.trim();
-        if (newName && newName !== studentName) {
-            try {
-                await updateStudentNameOnly(studentId, newName); // Gọi hàm chỉ cập nhật tên
-                 cancelButton.click();
-            } catch (error) {
-                console.error("Lỗi cập nhật tên học sinh:", error);
-                alert(`Không thể cập nhật tên học sinh: ${error.message}`);
-            }
-        } else if (newName === studentName) {
-             cancelButton.click();
-        } else {
+        const updatedDetails = {
+            name: editForm.querySelector(`#edit-student-name-${studentId}`).value.trim(),
+            dob: editForm.querySelector(`#edit-student-dob-${studentId}`).value || null, // Lưu null nếu trống
+            parentContact: editForm.querySelector(`#edit-student-contact-${studentId}`).value.trim() || null,
+            notes: editForm.querySelector(`#edit-student-notes-${studentId}`).value.trim() || null,
+        };
+
+        if (!updatedDetails.name) {
             alert("Tên học sinh không được để trống.");
+            return;
+        }
+
+        try {
+            await updateStudentDetails(studentId, updatedDetails);
+            cancelButton.click(); // Thoát chế độ sửa (listener sẽ cập nhật UI)
+        } catch (error) {
+            console.error("Lỗi cập nhật thông tin học sinh:", error);
+            alert(`Không thể cập nhật thông tin học sinh: ${error.message}`);
         }
     });
 
     contentDiv.appendChild(editForm);
     li.appendChild(contentDiv);
 
+    // --- Các nút hành động (Sửa, Xóa) ---
     const actionsDiv = document.createElement('div');
     actionsDiv.classList.add('actions');
 
@@ -584,12 +628,16 @@ function createStudentListItem(studentId, studentName) {
     editButton.classList.add('btn', 'btn-warning', 'btn-sm');
     editButton.addEventListener('click', (e) => {
         e.stopPropagation();
+        // Đóng tất cả các form sửa khác trước khi mở form này
+        document.querySelectorAll('#student-list li.editing').forEach(otherLi => {
+            if(otherLi !== li) {
+                 otherLi.querySelector('.cancel-edit-student')?.click(); // Giả lập click hủy
+            }
+        });
+        // Mở form sửa này
         li.classList.add('editing');
-        nameSpan.style.display = 'none';
-        editForm.style.display = 'flex';
-        actionsDiv.style.display = 'none';
-        editInput.focus();
-        editInput.select();
+        // CSS sẽ xử lý việc ẩn/hiện các phần tử
+        editForm.querySelector('input[type="text"]').focus(); // Focus vào ô tên
     });
     actionsDiv.appendChild(editButton);
 
@@ -598,7 +646,7 @@ function createStudentListItem(studentId, studentName) {
     deleteButton.classList.add('btn', 'btn-danger', 'btn-sm');
     deleteButton.addEventListener('click', (e) => {
         e.stopPropagation();
-        deleteStudent(studentId, studentName);
+        deleteStudent(studentId, studentData.name);
     });
     actionsDiv.appendChild(deleteButton);
 
@@ -607,18 +655,24 @@ function createStudentListItem(studentId, studentName) {
     return li;
 }
 
-// Hàm chỉ cập nhật tên học sinh
-async function updateStudentNameOnly(studentId, newName) {
-    if (!currentUser || !currentClassId || !studentId || !newName) return;
+
+/**
+ * Cập nhật thông tin chi tiết của học sinh trong Firestore.
+ * @param {string} studentId ID học sinh
+ * @param {object} details Đối tượng chứa các thông tin cần cập nhật (name, dob, parentContact, notes)
+ */
+async function updateStudentDetails(studentId, details) {
+    if (!currentUser || !currentClassId || !studentId || !details) return;
     const studentRef = db.collection('users').doc(currentUser.uid)
                        .collection('classes').doc(currentClassId)
                        .collection('students').doc(studentId);
     try {
-        await studentRef.update({ name: newName });
-        console.log(`Đã cập nhật tên học sinh ${studentId} thành "${newName}"`);
+        // Chỉ cập nhật các trường được cung cấp trong details
+        await studentRef.update(details);
+        console.log(`Đã cập nhật thông tin cho học sinh ${studentId}`);
     } catch (error) {
-        console.error("Lỗi cập nhật tên học sinh:", error);
-        throw error;
+        console.error("Lỗi cập nhật thông tin học sinh:", error);
+        throw error; // Ném lỗi ra để hàm gọi xử lý
     }
 }
 
@@ -654,7 +708,9 @@ addStudentForm.addEventListener('submit', (e) => {
       .collection('classes').doc(currentClassId)
       .collection('students').add({
         name: studentName,
-        // Không cần các trường chi tiết khác trong phiên bản này
+        dob: null, // Khởi tạo các trường mới
+        parentContact: null,
+        notes: null,
         grades: {},
         addedAt: firebase.firestore.FieldValue.serverTimestamp()
     })
