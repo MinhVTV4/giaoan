@@ -16,9 +16,6 @@ const firebaseConfig = {
 // Sử dụng API tương thích (compat) như trong các file HTML đã nạp
 try {
     firebase.initializeApp(firebaseConfig);
-    // Không cần khởi tạo analytics ở đây nếu không dùng đến trong MVP này
-    // và nếu bạn đang dùng SDK compat như trong HTML
-    // Nếu muốn dùng Analytics với SDK mới (modular), cách import và sử dụng sẽ khác
 } catch (e) {
     console.error("Lỗi khởi tạo Firebase:", e);
     alert("Không thể khởi tạo ứng dụng. Vui lòng kiểm tra cấu hình Firebase trong app.js và kết nối mạng.");
@@ -216,8 +213,11 @@ function mapAuthError(errorCode) {
             return 'Địa chỉ email này đã được sử dụng.';
         case 'auth/weak-password':
             return 'Mật khẩu quá yếu.';
+        // Thêm các mã lỗi khác nếu cần
+        case 'auth/requires-recent-login':
+            return 'Hành động này yêu cầu đăng nhập lại gần đây.';
         default:
-            return 'Có lỗi xảy ra, vui lòng thử lại.';
+            return 'Có lỗi xảy ra, vui lòng thử lại. (' + errorCode + ')'; // Hiển thị mã lỗi gốc nếu không xác định
     }
 }
 
@@ -261,7 +261,6 @@ function loadClasses() {
     if (!currentUser) return; // Chỉ tải khi đã đăng nhập
 
     // Dừng lắng nghe danh sách cũ (nếu có) trước khi bắt đầu lắng nghe mới
-    // Quan trọng khi người dùng đăng xuất rồi đăng nhập lại bằng tài khoản khác
     if (unsubscribeClasses) {
         unsubscribeClasses();
         console.log("Đã dừng lắng nghe danh sách lớp cũ.");
@@ -280,12 +279,15 @@ function loadClasses() {
             snapshot.forEach(doc => {
                 const classData = doc.data();
                 const li = document.createElement('li');
+                li.dataset.id = doc.id; // Lưu ID của lớp vào thuộc tính data-id để dùng sau
+                li.dataset.name = classData.name; // Lưu tên lớp để dùng khi chuyển view
+                li.classList.add('class-item'); // Thêm class để dễ dàng style
+
                 // Tạo span chứa tên lớp để click vào xem chi tiết
                 const nameSpan = document.createElement('span');
                 nameSpan.textContent = classData.name;
+                nameSpan.classList.add('item-name'); // Thêm class cho tên
                 nameSpan.style.cursor = 'pointer'; // Đổi con trỏ khi di chuột vào tên
-                nameSpan.style.flexGrow = '1'; // Cho phép tên lớp chiếm không gian
-                nameSpan.style.marginRight = '10px'; // Khoảng cách với nút xóa
                 nameSpan.addEventListener('click', (e) => {
                     // Ngăn sự kiện click lan ra thẻ li (nếu có)
                     e.stopPropagation();
@@ -293,9 +295,22 @@ function loadClasses() {
                 });
                 li.appendChild(nameSpan);
 
-                li.dataset.id = doc.id; // Lưu ID của lớp vào thuộc tính data-id để dùng sau
-                li.dataset.name = classData.name; // Lưu tên lớp để dùng khi chuyển view
-                li.classList.add('class-item'); // Thêm class để dễ dàng style
+                // Tạo container cho các nút hành động
+                const actionsDiv = document.createElement('div');
+                actionsDiv.classList.add('actions');
+
+                // Tạo nút Xóa
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Xóa'; // Hoặc dùng icon nếu muốn
+                deleteButton.classList.add('btn', 'btn-danger', 'btn-sm'); // Thêm class CSS
+                deleteButton.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Ngăn sự kiện click lan ra nameSpan hoặc li
+                    deleteClass(doc.id, classData.name); // Gọi hàm xóa lớp
+                });
+                actionsDiv.appendChild(deleteButton);
+
+                // Thêm container nút vào thẻ li
+                li.appendChild(actionsDiv);
 
                 classListUl.appendChild(li); // Thêm mục lớp học vào danh sách trên UI
             });
@@ -308,6 +323,57 @@ function loadClasses() {
         });
         console.log("Bắt đầu lắng nghe danh sách lớp.");
 }
+
+/**
+ * Hàm xóa một lớp học và tất cả học sinh bên trong.
+ * @param {string} classId ID của lớp học cần xóa
+ * @param {string} className Tên của lớp học (để hiển thị xác nhận)
+ */
+async function deleteClass(classId, className) {
+    if (!currentUser || !classId) return;
+
+    // Hỏi xác nhận người dùng
+    const confirmation = confirm(`Bạn có chắc chắn muốn xóa lớp "${className}" không? Hành động này sẽ xóa cả lớp và TOÀN BỘ học sinh trong lớp đó và không thể hoàn tác.`);
+
+    if (confirmation) {
+        console.log(`Bắt đầu xóa lớp: ${className} (ID: ${classId})`);
+        const classRef = db.collection('users').doc(currentUser.uid).collection('classes').doc(classId);
+        const studentsRef = classRef.collection('students');
+
+        try {
+            // 1. Lấy tất cả học sinh trong lớp
+            const studentSnapshot = await studentsRef.get();
+
+            // 2. Xóa từng học sinh (sử dụng batch write để hiệu quả hơn nếu nhiều)
+            if (!studentSnapshot.empty) {
+                 console.log(`Tìm thấy ${studentSnapshot.size} học sinh để xóa...`);
+                 const batch = db.batch(); // Tạo batch để xóa nhiều document cùng lúc
+                 studentSnapshot.forEach(doc => {
+                     batch.delete(doc.ref); // Thêm lệnh xóa vào batch
+                 });
+                 await batch.commit(); // Thực thi batch xóa học sinh
+                 console.log("Đã xóa xong học sinh.");
+            } else {
+                 console.log("Không có học sinh nào trong lớp để xóa.");
+            }
+
+
+            // 3. Xóa document của lớp học
+            await classRef.delete();
+            console.log(`Đã xóa thành công lớp: ${className}`);
+            // Giao diện sẽ tự cập nhật nhờ onSnapshot của loadClasses
+
+        } catch (error) {
+            console.error(`Lỗi khi xóa lớp "${className}": `, error);
+            displayError(classError, `Không thể xóa lớp "${className}": ${error.message}`);
+            // Có thể hiển thị thông báo lỗi cụ thể hơn cho người dùng
+            alert(`Đã xảy ra lỗi khi xóa lớp "${className}". Vui lòng thử lại.`);
+        }
+    } else {
+        console.log("Hủy bỏ thao tác xóa lớp.");
+    }
+}
+
 
 // --- QUẢN LÝ HỌC SINH (FIRESTORE) ---
 
@@ -324,6 +390,7 @@ function viewClassDetail(classId, className) {
     currentClassId = classId; // Lưu lại ID lớp đang xem
     detailClassNameH1.textContent = `Lớp: ${className}`; // Hiển thị tên lớp trên tiêu đề
     studentListUl.innerHTML = '<li class="loading-placeholder">Đang tải danh sách học sinh...</li>'; // Hiển thị trạng thái tải
+    clearErrors(); // Xóa lỗi cũ trên màn hình chi tiết
     showView('class-detail-view'); // Chuyển sang màn hình chi tiết
     loadStudents(classId); // Bắt đầu tải danh sách học sinh cho lớp này
 }
@@ -353,14 +420,25 @@ function loadStudents(classId) {
         snapshot.forEach(doc => {
             const studentData = doc.data();
             const li = document.createElement('li');
+            li.dataset.id = doc.id; // Lưu ID học sinh (có thể dùng để sửa/xóa sau này)
+
             // Tạo span chứa tên học sinh
             const nameSpan = document.createElement('span');
             nameSpan.textContent = studentData.name;
-            nameSpan.style.flexGrow = '1'; // Cho phép tên chiếm không gian
-            nameSpan.style.marginRight = '10px'; // Khoảng cách với nút xóa
+            nameSpan.classList.add('item-name'); // Thêm class cho tên
             li.appendChild(nameSpan);
 
-            li.dataset.id = doc.id; // Lưu ID học sinh (có thể dùng để sửa/xóa sau này)
+            // Tạo container cho nút hành động (nếu cần thêm nút sửa/xóa học sinh sau này)
+            // const actionsDiv = document.createElement('div');
+            // actionsDiv.classList.add('actions');
+            // // Ví dụ: Thêm nút xóa học sinh
+            // const deleteStudentBtn = document.createElement('button');
+            // deleteStudentBtn.textContent = 'Xóa';
+            // deleteStudentBtn.classList.add('btn', 'btn-danger', 'btn-sm');
+            // deleteStudentBtn.onclick = (e) => { e.stopPropagation(); /* Gọi hàm xóa học sinh */ };
+            // actionsDiv.appendChild(deleteStudentBtn);
+            // li.appendChild(actionsDiv);
+
 
             studentListUl.appendChild(li);
         });
