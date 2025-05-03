@@ -22,12 +22,11 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // --- LẤY THAM CHIẾU ĐẾN CÁC PHẦN TỬ HTML ---
+// (Giữ nguyên các tham chiếu)
 const authView = document.getElementById('auth-view');
 const dashboardView = document.getElementById('dashboard-view');
 const classDetailView = document.getElementById('class-detail-view');
 const allViews = document.querySelectorAll('.view');
-
-// Auth Elements
 const loginForm = document.getElementById('login-form');
 const registerForm = document.getElementById('register-form');
 const loginEmailInput = document.getElementById('login-email');
@@ -40,30 +39,22 @@ const authError = document.getElementById('auth-error');
 const registerError = document.getElementById('register-error');
 const logoutButton = document.getElementById('logout-button');
 const userEmailSpan = document.getElementById('user-email');
-
-// Dashboard Elements
 const addClassForm = document.getElementById('add-class-form');
 const classNameInput = document.getElementById('class-name');
 const classListUl = document.getElementById('class-list');
 const classError = document.getElementById('class-error');
-
-// Class Detail Elements
 const addStudentForm = document.getElementById('add-student-form');
 const studentNameInput = document.getElementById('student-name');
 const studentListUl = document.getElementById('student-list');
 const detailClassNameH1 = document.getElementById('detail-class-name');
 const backToDashboardButton = document.getElementById('back-to-dashboard-button');
 const studentError = document.getElementById('student-error');
-
-// Attendance Elements
 const attendanceSection = document.getElementById('attendance-section');
 const attendanceDateInput = document.getElementById('attendance-date');
 const attendanceListUl = document.getElementById('attendance-list');
 const attendanceError = document.getElementById('attendance-error');
 const filterAbsentButton = document.getElementById('filter-absent-button');
 const attendanceInfo = document.getElementById('attendance-info');
-
-// Gradebook Elements
 const gradebookSection = document.getElementById('gradebook-section');
 const addGradeColumnButton = document.getElementById('add-grade-column-button');
 const gradebookTableContainer = document.getElementById('gradebook-table-container');
@@ -71,6 +62,7 @@ const gradebookError = document.getElementById('gradebook-error');
 
 
 // --- BIẾN TRẠNG THÁI ---
+// (Giữ nguyên)
 let currentUser = null;
 let currentClassId = null;
 let unsubscribeClasses = null;
@@ -82,6 +74,7 @@ let currentGradeColumns = [];
 
 
 // --- HÀM TIỆN ÍCH ---
+// (Giữ nguyên)
 function showView(viewId) {
     allViews.forEach(view => view.style.display = 'none');
     const activeView = document.getElementById(viewId);
@@ -129,6 +122,7 @@ function getCurrentDateString() {
 }
 
 // --- QUẢN LÝ XÁC THỰC (AUTHENTICATION) ---
+// (Giữ nguyên)
 auth.onAuthStateChanged(user => {
     clearErrors();
     if (user) {
@@ -157,7 +151,6 @@ auth.onAuthStateChanged(user => {
     }
 });
 
-// (Các hàm xử lý đăng nhập, đăng ký, logout, mapAuthError giữ nguyên)
 loginForm.addEventListener('submit', (e) => {
     e.preventDefault();
     clearErrors();
@@ -223,6 +216,7 @@ function mapAuthError(errorCode) {
 
 
 // --- QUẢN LÝ LỚP HỌC (FIRESTORE) ---
+// (Giữ nguyên các hàm quản lý lớp)
 addClassForm.addEventListener('submit', (e) => {
     e.preventDefault();
     clearErrors();
@@ -270,7 +264,6 @@ function loadClasses() {
 }
 
 function createClassListItem(classId, className) {
-    // (Giữ nguyên hàm này như phiên bản trước)
     const li = document.createElement('li');
     li.dataset.id = classId;
     li.dataset.name = className;
@@ -385,7 +378,6 @@ async function updateClassName(classId, newName) {
 
 async function deleteClass(classId, className) {
     if (!currentUser || !classId) return;
-    // Cập nhật thông báo xác nhận để bao gồm cả sổ điểm
     const confirmation = confirm(`Bạn có chắc chắn muốn xóa lớp "${className}" không? Hành động này sẽ xóa cả lớp, học sinh, điểm danh, và sổ điểm của lớp đó và không thể hoàn tác.`);
     if (!confirmation) { console.log("Hủy bỏ thao tác xóa lớp."); return; }
 
@@ -552,7 +544,7 @@ function createStudentListItem(studentId, studentData) {
     //     detailText += ` - ĐT: ${studentData.parentContact}`;
     // }
     detailsSpan.textContent = detailText;
-    detailsSpan.style.display = detailText ? 'inline-block' : 'none'; // Chỉ hiện nếu có nội dung
+    // Quan trọng: Đảm bảo detailsSpan được thêm vào contentDiv
     contentDiv.appendChild(detailsSpan);
 
 
@@ -725,7 +717,7 @@ addStudentForm.addEventListener('submit', (e) => {
 });
 
 // --- QUẢN LÝ ĐIỂM DANH ---
-
+// (Giữ nguyên các hàm điểm danh)
 function initializeAttendance() {
     attendanceDateInput.value = getCurrentDateString();
     attendanceDateInput.removeEventListener('change', handleDateChange);
