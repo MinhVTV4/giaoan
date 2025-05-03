@@ -60,16 +60,26 @@ const attendanceSection = document.getElementById('attendance-section');
 const attendanceDateInput = document.getElementById('attendance-date');
 const attendanceListUl = document.getElementById('attendance-list');
 const attendanceError = document.getElementById('attendance-error');
-const filterAbsentButton = document.getElementById('filter-absent-button'); // Nút lọc MỚI
-const attendanceInfo = document.getElementById('attendance-info'); // Dòng thông tin MỚI
+const filterAbsentButton = document.getElementById('filter-absent-button');
+const attendanceInfo = document.getElementById('attendance-info');
+
+// Gradebook Elements (MỚI)
+const gradebookSection = document.getElementById('gradebook-section');
+const addGradeColumnButton = document.getElementById('add-grade-column-button');
+const gradebookTableContainer = document.getElementById('gradebook-table-container');
+const gradebookError = document.getElementById('gradebook-error');
 
 
 // --- BIẾN TRẠNG THÁI ---
 let currentUser = null;
 let currentClassId = null;
 let unsubscribeClasses = null;
-let unsubscribeStudents = null;
-let isFilteringAbsent = false; // Trạng thái lọc điểm danh MỚI
+let unsubscribeStudents = null; // Listener cho cả quản lý HS và điểm danh
+let unsubscribeGradeColumns = null; // Listener cho cột điểm (MỚI)
+let isFilteringAbsent = false;
+let currentStudentsData = []; // Lưu trữ danh sách học sinh hiện tại (MỚI)
+let currentGradeColumns = []; // Lưu trữ danh sách cột điểm hiện tại (MỚI)
+
 
 // --- HÀM TIỆN ÍCH ---
 function showView(viewId) {
@@ -89,7 +99,8 @@ function clearErrors() {
     classError.textContent = '';
     studentError.textContent = '';
     attendanceError.textContent = '';
-    attendanceInfo.textContent = ''; // Xóa cả thông tin điểm danh
+    attendanceInfo.textContent = '';
+    gradebookError.textContent = ''; // Thêm xóa lỗi sổ điểm
 }
 
 function displayError(element, message) {
@@ -100,7 +111,7 @@ function displayError(element, message) {
     }
 }
 
-function displayInfo(element, message) { // Hàm hiển thị thông tin
+function displayInfo(element, message) {
     if (element) {
         element.textContent = message;
     } else {
@@ -129,17 +140,20 @@ auth.onAuthStateChanged(user => {
         currentUser = null;
         if (unsubscribeClasses) unsubscribeClasses();
         if (unsubscribeStudents) unsubscribeStudents();
+        if (unsubscribeGradeColumns) unsubscribeGradeColumns(); // Dừng nghe cột điểm
         unsubscribeClasses = null;
         unsubscribeStudents = null;
+        unsubscribeGradeColumns = null; // Reset listener cột điểm
         classListUl.innerHTML = '';
         studentListUl.innerHTML = '';
         attendanceListUl.innerHTML = '';
+        gradebookTableContainer.innerHTML = ''; // Xóa bảng điểm
         loginForm.reset();
         registerForm.reset();
         showView('auth-view');
         registerForm.style.display = 'none';
         loginForm.style.display = 'block';
-        isFilteringAbsent = false; // Reset trạng thái lọc khi logout
+        isFilteringAbsent = false;
     }
 });
 
@@ -256,6 +270,7 @@ function loadClasses() {
 }
 
 function createClassListItem(classId, className) {
+    // (Giữ nguyên hàm này như phiên bản trước)
     const li = document.createElement('li');
     li.dataset.id = classId;
     li.dataset.name = className;
@@ -370,14 +385,14 @@ async function updateClassName(classId, newName) {
 
 async function deleteClass(classId, className) {
     if (!currentUser || !classId) return;
-    const confirmation = confirm(`Bạn có chắc chắn muốn xóa lớp "${className}" không? Hành động này sẽ xóa cả lớp và TOÀN BỘ học sinh, điểm danh trong lớp đó và không thể hoàn tác.`);
+    const confirmation = confirm(`Bạn có chắc chắn muốn xóa lớp "${className}" không? Hành động này sẽ xóa cả lớp, học sinh, điểm danh, và sổ điểm của lớp đó và không thể hoàn tác.`);
     if (!confirmation) { console.log("Hủy bỏ thao tác xóa lớp."); return; }
 
     console.log(`Bắt đầu xóa lớp: ${className} (ID: ${classId})`);
     const classRef = db.collection('users').doc(currentUser.uid).collection('classes').doc(classId);
 
     try {
-        // Xóa subcollection 'students'
+        // Xóa subcollection 'students' (và điểm trong đó)
         const studentsRef = classRef.collection('students');
         const studentSnapshot = await studentsRef.get();
         if (!studentSnapshot.empty) {
@@ -403,6 +418,19 @@ async function deleteClass(classId, className) {
             console.log("Không có dữ liệu điểm danh nào trong lớp để xóa.");
         }
 
+        // Xóa subcollection 'gradeColumns' (MỚI)
+        const gradeColsRef = classRef.collection('gradeColumns');
+        const gradeColsSnapshot = await gradeColsRef.get();
+         if (!gradeColsSnapshot.empty) {
+            console.log(`Tìm thấy ${gradeColsSnapshot.size} cột điểm để xóa...`);
+            const batchGradeCols = db.batch();
+            gradeColsSnapshot.forEach(doc => batchGradeCols.delete(doc.ref));
+            await batchGradeCols.commit();
+            console.log("Đã xóa xong các cột điểm.");
+        } else {
+            console.log("Không có cột điểm nào trong lớp để xóa.");
+        }
+
 
         // Xóa document của lớp học
         await classRef.delete();
@@ -421,47 +449,21 @@ function viewClassDetail(classId, className) {
     detailClassNameH1.textContent = `Lớp: ${className}`;
     studentListUl.innerHTML = '<li class="loading-placeholder">Đang tải danh sách học sinh...</li>';
     attendanceListUl.innerHTML = '<li class="loading-placeholder">Chọn ngày để xem điểm danh...</li>';
+    gradebookTableContainer.innerHTML = '<p class="loading-placeholder">Đang tải sổ điểm...</p>'; // Reset sổ điểm
     clearErrors();
     showView('class-detail-view');
 
     initializeAttendance();
-    loadStudents(classId);
+    initializeGradebook(); // Khởi tạo sổ điểm (MỚI)
+    loadStudentsAndGradeColumns(classId); // Tải cả HS và cột điểm (MỚI)
 }
 
-function loadStudents(classId) {
-    if (!currentUser || !classId) return;
-    if (unsubscribeStudents) unsubscribeStudents();
-
-    unsubscribeStudents = db.collection('users').doc(currentUser.uid)
-                          .collection('classes').doc(classId)
-                          .collection('students')
-                          .orderBy('name', 'asc')
-                          .onSnapshot(snapshot => {
-        studentListUl.innerHTML = '';
-        const students = [];
-        if (snapshot.empty) {
-            studentListUl.innerHTML = '<li class="loading-placeholder">Chưa có học sinh nào trong lớp này.</li>';
-        } else {
-             snapshot.forEach(doc => {
-                const studentData = doc.data();
-                students.push({ id: doc.id, name: studentData.name });
-                const li = createStudentListItem(doc.id, studentData.name);
-                studentListUl.appendChild(li);
-            });
-        }
-        const selectedDate = attendanceDateInput.value || getCurrentDateString();
-        loadAttendance(classId, selectedDate, students);
-
-    }, error => {
-        console.error(`Lỗi tải danh sách học sinh cho lớp ${classId}: `, error);
-        displayError(studentError, `Lỗi tải học sinh: ${error.message}`);
-        studentListUl.innerHTML = '<li class="loading-placeholder">Có lỗi xảy ra khi tải danh sách học sinh.</li>';
-        attendanceListUl.innerHTML = '<li class="loading-placeholder">Lỗi tải danh sách học sinh, không thể điểm danh.</li>';
-    });
-}
+// (Hàm loadStudents cũ được thay bằng loadStudentsAndGradeColumns)
+// function loadStudents(classId) { ... }
 
 function createStudentListItem(studentId, studentName) {
-    const li = document.createElement('li');
+    // (Giữ nguyên hàm này như phiên bản trước)
+     const li = document.createElement('li');
     li.dataset.id = studentId;
 
     const contentDiv = document.createElement('div');
@@ -560,6 +562,7 @@ async function updateStudentName(studentId, newName) {
     try {
         await studentRef.update({ name: newName });
         console.log(`Đã cập nhật tên học sinh ${studentId} thành "${newName}"`);
+        // Không cần load lại sổ điểm ở đây vì listener sẽ tự cập nhật
     } catch (error) {
         console.error("Lỗi cập nhật tên học sinh:", error);
         throw error;
@@ -568,7 +571,7 @@ async function updateStudentName(studentId, newName) {
 
 async function deleteStudent(studentId, studentName) {
     if (!currentUser || !currentClassId || !studentId) return;
-    const confirmation = confirm(`Bạn có chắc chắn muốn xóa học sinh "${studentName}" khỏi lớp này không? Dữ liệu điểm danh của học sinh này cũng sẽ bị ảnh hưởng.`);
+    const confirmation = confirm(`Bạn có chắc chắn muốn xóa học sinh "${studentName}" khỏi lớp này không? Điểm và dữ liệu điểm danh của học sinh này cũng sẽ bị xóa.`);
     if (!confirmation) { console.log("Hủy bỏ thao tác xóa học sinh."); return; }
 
     console.log(`Bắt đầu xóa học sinh: ${studentName} (ID: ${studentId})`);
@@ -576,18 +579,14 @@ async function deleteStudent(studentId, studentName) {
                        .collection('classes').doc(currentClassId)
                        .collection('students').doc(studentId);
     try {
-        await studentRef.delete();
+        await studentRef.delete(); // Xóa tài liệu HS (bao gồm cả điểm)
         console.log(`Đã xóa thành công học sinh: ${studentName}`);
-        // Cần cập nhật lại cả danh sách điểm danh nếu đang hiển thị
-        const selectedDate = attendanceDateInput.value || getCurrentDateString();
-        // Tải lại danh sách học sinh (đã loại bỏ em vừa xóa)
-        const updatedStudentsSnapshot = await db.collection('users').doc(currentUser.uid)
-                                            .collection('classes').doc(currentClassId)
-                                            .collection('students')
-                                            .orderBy('name', 'asc').get();
-        const updatedStudents = updatedStudentsSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
-        // Tải lại điểm danh với danh sách học sinh mới
-        loadAttendance(currentClassId, selectedDate, updatedStudents);
+        // Cập nhật lại danh sách điểm danh (sẽ tự gọi loadAttendance)
+        // Cập nhật lại sổ điểm (sẽ tự gọi renderGradebookTable)
+        // -> Chỉ cần load lại cả hai (loadStudentsAndGradeColumns sẽ làm việc này)
+        if(currentClassId) { // Đảm bảo vẫn đang ở chi tiết lớp
+             loadStudentsAndGradeColumns(currentClassId);
+        }
 
     } catch (error) {
         console.error(`Lỗi khi xóa học sinh "${studentName}": `, error);
@@ -607,11 +606,13 @@ addStudentForm.addEventListener('submit', (e) => {
       .collection('classes').doc(currentClassId)
       .collection('students').add({
         name: studentName,
+        grades: {}, // Khởi tạo map điểm rỗng cho học sinh mới
         addedAt: firebase.firestore.FieldValue.serverTimestamp()
     })
     .then(() => {
         console.log(`Đã thêm học sinh "${studentName}" vào lớp ${currentClassId}`);
         studentNameInput.value = '';
+        // Listener của loadStudentsAndGradeColumns sẽ tự cập nhật UI
     })
     .catch(error => {
         console.error("Lỗi thêm học sinh: ", error);
@@ -623,16 +624,13 @@ addStudentForm.addEventListener('submit', (e) => {
 
 function initializeAttendance() {
     attendanceDateInput.value = getCurrentDateString();
-    // Gắn listener cho ô ngày
     attendanceDateInput.removeEventListener('change', handleDateChange);
     attendanceDateInput.addEventListener('change', handleDateChange);
-    // Gắn listener cho nút lọc (MỚI)
     filterAbsentButton.removeEventListener('click', toggleAbsentFilter);
     filterAbsentButton.addEventListener('click', toggleAbsentFilter);
-    // Reset trạng thái lọc khi vào lớp mới
     isFilteringAbsent = false;
-    updateFilterButton(); // Cập nhật text nút lọc
-    attendanceListUl.classList.remove('filtering-absent'); // Bỏ class lọc
+    updateFilterButton();
+    attendanceListUl.classList.remove('filtering-absent');
 }
 
 function handleDateChange() {
@@ -640,63 +638,38 @@ function handleDateChange() {
     const selectedDate = attendanceDateInput.value;
     if (selectedDate) {
         attendanceListUl.innerHTML = '<li class="loading-placeholder">Đang tải điểm danh...</li>';
-         db.collection('users').doc(currentUser.uid)
-           .collection('classes').doc(currentClassId)
-           .collection('students')
-           .orderBy('name', 'asc').get()
-           .then(snapshot => {
-               const students = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
-               loadAttendance(currentClassId, selectedDate, students);
-           })
-           .catch(error => {
-               console.error("Lỗi lấy lại danh sách học sinh khi đổi ngày:", error);
-               displayError(attendanceError, `Lỗi tải lại học sinh: ${error.message}`);
-               attendanceListUl.innerHTML = '<li class="loading-placeholder">Lỗi tải danh sách học sinh.</li>';
-           });
+         // Chỉ cần tải lại điểm danh với danh sách học sinh đã lưu
+         loadAttendance(currentClassId, selectedDate, currentStudentsData);
     }
 }
 
-/**
- * Bật/tắt chế độ lọc chỉ hiển thị học sinh vắng mặt. (MỚI)
- */
 function toggleAbsentFilter() {
-    isFilteringAbsent = !isFilteringAbsent; // Đảo trạng thái lọc
-    updateFilterButton(); // Cập nhật text nút
-    applyAttendanceFilter(); // Áp dụng bộ lọc lên danh sách hiện tại
+    isFilteringAbsent = !isFilteringAbsent;
+    updateFilterButton();
+    applyAttendanceFilter();
 }
 
-/**
- * Cập nhật text và trạng thái của nút lọc. (MỚI)
- */
 function updateFilterButton() {
      if (isFilteringAbsent) {
         filterAbsentButton.textContent = 'Hiện tất cả HS';
         filterAbsentButton.classList.remove('btn-secondary');
-        filterAbsentButton.classList.add('btn-info'); // Đổi màu nút khi đang lọc
+        filterAbsentButton.classList.add('btn-info');
     } else {
         filterAbsentButton.textContent = 'Chỉ hiện HS vắng';
         filterAbsentButton.classList.remove('btn-info');
-        filterAbsentButton.classList.add('btn-secondary'); // Màu mặc định
+        filterAbsentButton.classList.add('btn-secondary');
     }
 }
 
-/**
- * Áp dụng/bỏ áp dụng bộ lọc lên danh sách điểm danh UL. (MỚI)
- */
 function applyAttendanceFilter() {
      if (isFilteringAbsent) {
-        attendanceListUl.classList.add('filtering-absent'); // Thêm class để CSS ẩn các mục không vắng
+        attendanceListUl.classList.add('filtering-absent');
     } else {
-        attendanceListUl.classList.remove('filtering-absent'); // Bỏ class để hiện tất cả
+        attendanceListUl.classList.remove('filtering-absent');
     }
-    // Cập nhật lại thông tin số HS vắng
     updateAttendanceInfo();
 }
 
-
-/**
- * Cập nhật dòng thông tin số học sinh vắng. (MỚI)
- */
 function updateAttendanceInfo() {
     const totalStudents = attendanceListUl.querySelectorAll('li:not(.loading-placeholder)').length;
     const absentStudents = attendanceListUl.querySelectorAll('li.absent').length;
@@ -708,7 +681,7 @@ function updateAttendanceInfo() {
              displayInfo(attendanceInfo, `Tổng số: ${totalStudents} học sinh | Vắng mặt: ${absentStudents}`);
          }
     } else {
-         attendanceInfo.textContent = ''; // Xóa thông tin nếu không có học sinh
+         attendanceInfo.textContent = '';
     }
 }
 
@@ -719,7 +692,8 @@ async function loadAttendance(classId, dateString, students) {
          return;
     }
     attendanceListUl.innerHTML = '';
-    clearErrors(); // Xóa lỗi cũ, giữ lại info
+    // Giữ lại lỗi điểm danh nếu có
+    // clearErrors(); // Không xóa lỗi ở đây nữa
 
     const attendanceDocRef = db.collection('users').doc(currentUser.uid)
                                .collection('classes').doc(classId)
@@ -732,7 +706,7 @@ async function loadAttendance(classId, dateString, students) {
 
         if (students.length === 0) {
             attendanceListUl.innerHTML = '<li class="loading-placeholder">Chưa có học sinh trong lớp để điểm danh.</li>';
-             updateAttendanceInfo(); // Cập nhật thông tin (sẽ là 0)
+             updateAttendanceInfo();
             return;
         }
 
@@ -741,14 +715,13 @@ async function loadAttendance(classId, dateString, students) {
             const li = createAttendanceListItem(student.id, student.name, isAbsent, dateString);
             attendanceListUl.appendChild(li);
         });
-        applyAttendanceFilter(); // Áp dụng bộ lọc sau khi tải xong
-        // updateAttendanceInfo(); // Cập nhật thông tin số HS vắng (đã gọi trong applyAttendanceFilter)
+        applyAttendanceFilter();
 
     } catch (error) {
         console.error(`Lỗi tải điểm danh ngày ${dateString}: `, error);
         displayError(attendanceError, `Lỗi tải điểm danh: ${error.message}`);
         attendanceListUl.innerHTML = '<li class="loading-placeholder">Có lỗi xảy ra khi tải điểm danh.</li>';
-        attendanceInfo.textContent = ''; // Xóa thông tin khi có lỗi
+        attendanceInfo.textContent = '';
     }
 }
 
@@ -759,9 +732,8 @@ function createAttendanceListItem(studentId, studentName, isAbsent, dateString) 
     li.classList.toggle('absent', isAbsent);
 
     li.addEventListener('click', () => {
-        // Khi click, luôn tắt chế độ lọc để người dùng thấy sự thay đổi
         if (isFilteringAbsent) {
-            toggleAbsentFilter(); // Tắt lọc trước khi toggle
+            toggleAbsentFilter();
         }
         toggleAttendance(studentId, isAbsent, dateString);
     });
@@ -778,10 +750,9 @@ async function toggleAttendance(studentId, wasAbsent, dateString) {
 
     const studentKey = `absentStudents.${studentId}`;
 
-    // Tìm phần tử li tương ứng để cập nhật UI tạm thời trước khi load lại
     const listItem = attendanceListUl.querySelector(`li[data-id="${studentId}"]`);
     if (listItem) {
-        listItem.style.opacity = '0.5'; // Làm mờ đi trong khi chờ cập nhật
+        listItem.style.opacity = '0.5';
     }
 
 
@@ -799,13 +770,8 @@ async function toggleAttendance(studentId, wasAbsent, dateString) {
             }, { merge: true });
             console.log(`Đã điểm danh VẮNG MẶT cho HS ${studentId} ngày ${dateString}`);
         }
-         // Tải lại danh sách học sinh và điểm danh để đảm bảo dữ liệu mới nhất
-         const studentsSnapshot = await db.collection('users').doc(currentUser.uid)
-                                         .collection('classes').doc(currentClassId)
-                                         .collection('students')
-                                         .orderBy('name', 'asc').get();
-         const students = studentsSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
-         loadAttendance(currentClassId, dateString, students); // Load lại sẽ tự cập nhật UI và info
+         // Chỉ cần load lại điểm danh với danh sách học sinh hiện tại
+         loadAttendance(currentClassId, dateString, currentStudentsData);
 
     } catch (error) {
         console.error(`Lỗi cập nhật điểm danh cho HS ${studentId} ngày ${dateString}: `, error);
@@ -814,14 +780,253 @@ async function toggleAttendance(studentId, wasAbsent, dateString) {
          // Khôi phục giao diện nếu lỗi
          if (listItem) {
              listItem.style.opacity = '1';
-             // Có thể cần load lại để chắc chắn trạng thái đúng
-              const studentsSnapshot = await db.collection('users').doc(currentUser.uid)
-                                         .collection('classes').doc(currentClassId)
-                                         .collection('students')
-                                         .orderBy('name', 'asc').get();
-             const students = studentsSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
-             loadAttendance(currentClassId, dateString, students);
+             // Load lại để chắc chắn
+             loadAttendance(currentClassId, dateString, currentStudentsData);
          }
+    }
+}
+
+// --- QUẢN LÝ SỔ ĐIỂM (MỚI) ---
+
+/**
+ * Khởi tạo phần sổ điểm: gắn listener cho nút thêm cột.
+ */
+function initializeGradebook() {
+    addGradeColumnButton.removeEventListener('click', handleAddGradeColumn);
+    addGradeColumnButton.addEventListener('click', handleAddGradeColumn);
+    // Listener cho việc nhập điểm sẽ được gắn vào container khi render bảng
+    gradebookTableContainer.removeEventListener('change', handleGradeInputChange); // Sử dụng change thay vì blur
+    gradebookTableContainer.addEventListener('change', handleGradeInputChange);
+}
+
+/**
+ * Xử lý sự kiện khi nhấn nút "Thêm cột điểm".
+ */
+async function handleAddGradeColumn() {
+    if (!currentUser || !currentClassId) return;
+
+    const columnName = prompt("Nhập tên cột điểm mới (ví dụ: Kiểm tra 15 phút, Giữa kỳ):");
+    if (columnName && columnName.trim()) {
+        const trimmedName = columnName.trim();
+        try {
+            await db.collection('users').doc(currentUser.uid)
+                    .collection('classes').doc(currentClassId)
+                    .collection('gradeColumns').add({
+                        name: trimmedName,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+            console.log(`Đã thêm cột điểm: ${trimmedName}`);
+            // Listener của loadStudentsAndGradeColumns sẽ tự cập nhật bảng
+        } catch (error) {
+            console.error("Lỗi thêm cột điểm:", error);
+            displayError(gradebookError, `Không thể thêm cột điểm: ${error.message}`);
+            alert("Có lỗi xảy ra khi thêm cột điểm.");
+        }
+    } else if (columnName !== null) { // Chỉ báo lỗi nếu người dùng nhập tên trống, không phải nhấn Hủy
+        alert("Tên cột điểm không được để trống.");
+    }
+}
+
+/**
+ * Tải đồng thời danh sách học sinh và cột điểm, sau đó render các phần liên quan.
+ * @param {string} classId ID của lớp học
+ */
+function loadStudentsAndGradeColumns(classId) {
+    if (!currentUser || !classId) return;
+
+    // Dừng các listener cũ
+    if (unsubscribeStudents) unsubscribeStudents();
+    if (unsubscribeGradeColumns) unsubscribeGradeColumns();
+
+    const studentsRef = db.collection('users').doc(currentUser.uid)
+                        .collection('classes').doc(classId)
+                        .collection('students').orderBy('name', 'asc');
+
+    const gradeColsRef = db.collection('users').doc(currentUser.uid)
+                         .collection('classes').doc(classId)
+                         .collection('gradeColumns').orderBy('createdAt', 'asc'); // Sắp xếp cột theo thời gian tạo
+
+    // Lắng nghe thay đổi trên cả hai collection
+    unsubscribeStudents = studentsRef.onSnapshot(studentSnapshot => {
+        studentListUl.innerHTML = ''; // Xóa list quản lý học sinh
+        currentStudentsData = []; // Reset danh sách học sinh đã lưu
+        if (studentSnapshot.empty) {
+            studentListUl.innerHTML = '<li class="loading-placeholder">Chưa có học sinh nào trong lớp này.</li>';
+        } else {
+             studentSnapshot.forEach(doc => {
+                const studentData = doc.data();
+                // Lưu trữ đầy đủ dữ liệu học sinh (bao gồm cả điểm)
+                currentStudentsData.push({ id: doc.id, ...studentData });
+                const li = createStudentListItem(doc.id, studentData.name);
+                studentListUl.appendChild(li);
+            });
+        }
+        // Cập nhật điểm danh và sổ điểm với danh sách học sinh mới
+        const selectedDate = attendanceDateInput.value || getCurrentDateString();
+        loadAttendance(classId, selectedDate, currentStudentsData);
+        renderGradebookTable(currentStudentsData, currentGradeColumns); // Render lại bảng điểm
+
+    }, error => {
+        console.error(`Lỗi tải danh sách học sinh: `, error);
+        displayError(studentError, `Lỗi tải học sinh: ${error.message}`);
+        studentListUl.innerHTML = '<li class="loading-placeholder">Có lỗi xảy ra khi tải danh sách học sinh.</li>';
+        attendanceListUl.innerHTML = '<li class="loading-placeholder">Lỗi tải danh sách học sinh, không thể điểm danh.</li>';
+        gradebookTableContainer.innerHTML = '<p class="loading-placeholder">Lỗi tải danh sách học sinh, không thể hiển thị sổ điểm.</p>';
+    });
+
+    unsubscribeGradeColumns = gradeColsRef.onSnapshot(colsSnapshot => {
+        currentGradeColumns = []; // Reset danh sách cột điểm đã lưu
+        colsSnapshot.forEach(doc => {
+            currentGradeColumns.push({ id: doc.id, ...doc.data() });
+        });
+        // Render lại bảng điểm với danh sách cột mới
+        renderGradebookTable(currentStudentsData, currentGradeColumns);
+
+    }, error => {
+         console.error(`Lỗi tải cột điểm: `, error);
+         displayError(gradebookError, `Lỗi tải cột điểm: ${error.message}`);
+         gradebookTableContainer.innerHTML = '<p class="loading-placeholder">Có lỗi xảy ra khi tải các cột điểm.</p>';
+    });
+}
+
+
+/**
+ * Render bảng điểm dựa trên danh sách học sinh và cột điểm.
+ * @param {Array} students Danh sách học sinh (bao gồm cả điểm)
+ * @param {Array} columns Danh sách cột điểm
+ */
+function renderGradebookTable(students, columns) {
+    gradebookTableContainer.innerHTML = ''; // Xóa nội dung cũ
+    if (!students || !columns === undefined) { // Kiểm tra columns có phải undefined không
+         gradebookTableContainer.innerHTML = '<p class="loading-placeholder">Đang tải dữ liệu sổ điểm...</p>';
+         return;
+    }
+
+    if (students.length === 0) {
+        gradebookTableContainer.innerHTML = '<p class="loading-placeholder">Chưa có học sinh để hiển thị sổ điểm.</p>';
+        return;
+    }
+
+    const table = document.createElement('table');
+    table.classList.add('gradebook-table');
+
+    // Tạo hàng tiêu đề (thead)
+    const thead = table.createTHead();
+    const headerRow = thead.insertRow();
+    const thStudent = document.createElement('th');
+    thStudent.textContent = 'Học sinh';
+    headerRow.appendChild(thStudent);
+
+    columns.forEach(col => {
+        const thCol = document.createElement('th');
+        thCol.textContent = col.name;
+        thCol.dataset.columnId = col.id; // Lưu ID cột để tham chiếu
+        // TODO: Thêm nút xóa cột điểm ở đây nếu cần
+        headerRow.appendChild(thCol);
+    });
+
+    // Tạo các hàng dữ liệu (tbody)
+    const tbody = table.createTBody();
+    students.forEach(student => {
+        const tr = tbody.insertRow();
+        const thName = document.createElement('th'); // Dùng th cho tên HS để sticky
+        thName.textContent = student.name;
+        tr.appendChild(thName);
+
+        columns.forEach(col => {
+            const td = tr.insertCell();
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.classList.add('grade-input');
+            input.dataset.studentId = student.id; // Lưu ID học sinh
+            input.dataset.columnId = col.id;     // Lưu ID cột điểm
+            input.min = 0; // Điểm không âm (tùy chỉnh nếu cần)
+            input.max = 10; // Điểm tối đa (tùy chỉnh nếu cần)
+            input.step = 0.1; // Bước nhảy điểm (tùy chỉnh nếu cần)
+
+            // Lấy điểm đã lưu (nếu có)
+            const currentGrade = student.grades && student.grades[col.id] !== undefined
+                               ? student.grades[col.id]
+                               : ''; // Để trống nếu chưa có điểm
+            input.value = currentGrade;
+
+            td.appendChild(input);
+        });
+    });
+
+    gradebookTableContainer.appendChild(table);
+}
+
+/**
+ * Xử lý sự kiện khi giá trị trong ô nhập điểm thay đổi.
+ * Sử dụng event delegation.
+ * @param {Event} e Sự kiện change
+ */
+function handleGradeInputChange(e) {
+    if (e.target.classList.contains('grade-input')) {
+        const input = e.target;
+        const studentId = input.dataset.studentId;
+        const columnId = input.dataset.columnId;
+        let score = input.value.trim(); // Lấy giá trị và xóa khoảng trắng
+
+        if (!studentId || !columnId) return; // Không có đủ thông tin
+
+        // Chuyển đổi điểm sang số hoặc null/undefined nếu trống
+        let scoreToSave;
+        if (score === '') {
+            // Nếu ô trống, xóa điểm khỏi Firestore
+            scoreToSave = firebase.firestore.FieldValue.delete();
+        } else {
+            const numericScore = parseFloat(score);
+            if (!isNaN(numericScore)) {
+                 // Làm tròn đến 1 chữ số thập phân (ví dụ)
+                 scoreToSave = Math.round(numericScore * 10) / 10;
+                 // Kiểm tra giới hạn điểm nếu cần
+                 if (scoreToSave < 0) scoreToSave = 0;
+                 if (scoreToSave > 10) scoreToSave = 10; // Giả sử thang điểm 10
+                 input.value = scoreToSave; // Cập nhật lại giá trị đã làm tròn/giới hạn
+            } else {
+                 // Nếu nhập không phải số, xóa giá trị và không lưu
+                 input.value = '';
+                 scoreToSave = firebase.firestore.FieldValue.delete();
+                 displayError(gradebookError, "Vui lòng nhập điểm là số.");
+                 // Có thể thêm timeout để xóa lỗi sau vài giây
+                 setTimeout(() => clearErrors(), 3000);
+            }
+        }
+
+
+        // Lưu điểm vào Firestore
+        saveGrade(studentId, columnId, scoreToSave);
+    }
+}
+
+/**
+ * Lưu điểm của học sinh vào Firestore.
+ * @param {string} studentId ID học sinh
+ * @param {string} columnId ID cột điểm
+ * @param {number | FieldValue} score Điểm cần lưu (số) hoặc FieldValue.delete()
+ */
+async function saveGrade(studentId, columnId, score) {
+    if (!currentUser || !currentClassId || !studentId || !columnId) return;
+
+    const studentRef = db.collection('users').doc(currentUser.uid)
+                       .collection('classes').doc(currentClassId)
+                       .collection('students').doc(studentId);
+
+    const gradeKey = `grades.${columnId}`; // Key để cập nhật bằng dot notation
+
+    try {
+        await studentRef.update({
+            [gradeKey]: score
+        });
+        console.log(`Đã lưu điểm cho HS ${studentId}, cột ${columnId}: ${score === firebase.firestore.FieldValue.delete() ? '(đã xóa)' : score}`);
+        displayError(gradebookError, ""); // Xóa lỗi nếu lưu thành công
+    } catch (error) {
+        console.error("Lỗi lưu điểm:", error);
+        displayError(gradebookError, `Lỗi lưu điểm: ${error.message}`);
+        // Có thể thử tải lại bảng điểm để đảm bảo đồng bộ
+        // loadStudentsAndGradeColumns(currentClassId);
     }
 }
 
@@ -829,12 +1034,15 @@ async function toggleAttendance(studentId, wasAbsent, dateString) {
 // --- XỬ LÝ NÚT QUAY LẠI ---
 backToDashboardButton.addEventListener('click', () => {
     if (unsubscribeStudents) unsubscribeStudents();
+    if (unsubscribeGradeColumns) unsubscribeGradeColumns(); // Dừng nghe cột điểm
     unsubscribeStudents = null;
+    unsubscribeGradeColumns = null;
     currentClassId = null;
     studentListUl.innerHTML = '';
     attendanceListUl.innerHTML = '';
+    gradebookTableContainer.innerHTML = ''; // Xóa bảng điểm
     clearErrors();
-    isFilteringAbsent = false; // Reset trạng thái lọc khi thoát
+    isFilteringAbsent = false;
     showView('dashboard-view');
 });
 
