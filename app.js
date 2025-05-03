@@ -55,11 +55,20 @@ const detailClassNameH1 = document.getElementById('detail-class-name');
 const backToDashboardButton = document.getElementById('back-to-dashboard-button');
 const studentError = document.getElementById('student-error');
 
+// Attendance Elements (MỚI)
+const attendanceSection = document.getElementById('attendance-section');
+const attendanceDateInput = document.getElementById('attendance-date');
+const attendanceListUl = document.getElementById('attendance-list');
+const attendanceError = document.getElementById('attendance-error');
+
+
 // --- BIẾN TRẠNG THÁI ---
 let currentUser = null;
 let currentClassId = null;
 let unsubscribeClasses = null;
 let unsubscribeStudents = null;
+// Không cần listener real-time cho attendance trong phiên bản này
+// let unsubscribeAttendance = null;
 
 // --- HÀM TIỆN ÍCH ---
 function showView(viewId) {
@@ -78,6 +87,7 @@ function clearErrors() {
     registerError.textContent = '';
     classError.textContent = '';
     studentError.textContent = '';
+    attendanceError.textContent = ''; // Thêm xóa lỗi điểm danh
 }
 
 function displayError(element, message) {
@@ -86,6 +96,18 @@ function displayError(element, message) {
     } else {
         console.error("Phần tử lỗi không tồn tại:", message);
     }
+}
+
+/**
+ * Lấy ngày hiện tại dưới dạng chuỗi 'YYYY-MM-DD'.
+ * @returns {string} Chuỗi ngày tháng năm.
+ */
+function getCurrentDateString() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0'); // Tháng bắt đầu từ 0
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 // --- QUẢN LÝ XÁC THỰC (AUTHENTICATION) ---
@@ -100,10 +122,13 @@ auth.onAuthStateChanged(user => {
         currentUser = null;
         if (unsubscribeClasses) unsubscribeClasses();
         if (unsubscribeStudents) unsubscribeStudents();
+        // if (unsubscribeAttendance) unsubscribeAttendance(); // Nếu có listener real-time
         unsubscribeClasses = null;
         unsubscribeStudents = null;
+        // unsubscribeAttendance = null;
         classListUl.innerHTML = '';
         studentListUl.innerHTML = '';
+        attendanceListUl.innerHTML = ''; // Xóa danh sách điểm danh khi logout
         loginForm.reset();
         registerForm.reset();
         showView('auth-view');
@@ -112,6 +137,7 @@ auth.onAuthStateChanged(user => {
     }
 });
 
+// (Các hàm xử lý đăng nhập, đăng ký, logout, mapAuthError giữ nguyên như trước)
 loginForm.addEventListener('submit', (e) => {
     e.preventDefault();
     clearErrors();
@@ -175,6 +201,7 @@ function mapAuthError(errorCode) {
     }
 }
 
+
 // --- QUẢN LÝ LỚP HỌC (FIRESTORE) ---
 addClassForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -212,7 +239,7 @@ function loadClasses() {
             }
             snapshot.forEach(doc => {
                 const classData = doc.data();
-                const li = createClassListItem(doc.id, classData.name); // Gọi hàm tạo li
+                const li = createClassListItem(doc.id, classData.name);
                 classListUl.appendChild(li);
             });
             console.log("Đã tải và hiển thị danh sách lớp.");
@@ -224,39 +251,30 @@ function loadClasses() {
     console.log("Bắt đầu lắng nghe danh sách lớp.");
 }
 
-/**
- * Tạo một phần tử list item (li) cho lớp học.
- * @param {string} classId ID của lớp học
- * @param {string} className Tên của lớp học
- * @returns {HTMLLIElement} Phần tử li đã được tạo
- */
 function createClassListItem(classId, className) {
     const li = document.createElement('li');
     li.dataset.id = classId;
     li.dataset.name = className;
     li.classList.add('class-item');
 
-    // Container cho nội dung (tên hoặc form sửa)
     const contentDiv = document.createElement('div');
     contentDiv.classList.add('item-content');
 
-    // Span hiển thị tên lớp
     const nameSpan = document.createElement('span');
     nameSpan.textContent = className;
     nameSpan.classList.add('item-name');
     nameSpan.style.cursor = 'pointer';
     nameSpan.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (!li.classList.contains('editing')) { // Chỉ xem chi tiết khi không đang sửa
+        if (!li.classList.contains('editing')) {
              viewClassDetail(classId, className);
         }
     });
     contentDiv.appendChild(nameSpan);
 
-    // Form sửa tên lớp (ẩn ban đầu)
     const editForm = document.createElement('form');
     editForm.classList.add('edit-form');
-    editForm.style.display = 'none'; // Ẩn ban đầu
+    editForm.style.display = 'none';
 
     const editInput = document.createElement('input');
     editInput.type = 'text';
@@ -271,15 +289,14 @@ function createClassListItem(classId, className) {
     editForm.appendChild(saveButton);
 
     const cancelButton = document.createElement('button');
-    cancelButton.type = 'button'; // Quan trọng: không phải submit
+    cancelButton.type = 'button';
     cancelButton.textContent = 'Hủy';
     cancelButton.classList.add('btn', 'btn-secondary', 'btn-sm');
     cancelButton.addEventListener('click', () => {
-        // Thoát chế độ chỉnh sửa
         li.classList.remove('editing');
-        nameSpan.style.display = ''; // Hiện lại tên
-        editForm.style.display = 'none'; // Ẩn form
-        actionsDiv.style.display = ''; // Hiện lại nút Sửa/Xóa
+        nameSpan.style.display = '';
+        editForm.style.display = 'none';
+        actionsDiv.style.display = '';
     });
     editForm.appendChild(cancelButton);
 
@@ -289,14 +306,12 @@ function createClassListItem(classId, className) {
         if (newName && newName !== className) {
             try {
                 await updateClassName(classId, newName);
-                // Tự động thoát chế độ sửa sau khi lưu thành công (onSnapshot sẽ cập nhật tên)
-                cancelButton.click(); // Giả lập click nút hủy để reset UI
+                cancelButton.click();
             } catch (error) {
                 console.error("Lỗi cập nhật tên lớp:", error);
                 alert(`Không thể cập nhật tên lớp: ${error.message}`);
             }
         } else if (newName === className) {
-             // Nếu tên không đổi, chỉ cần thoát chế độ sửa
              cancelButton.click();
         } else {
             alert("Tên lớp không được để trống.");
@@ -306,29 +321,23 @@ function createClassListItem(classId, className) {
     contentDiv.appendChild(editForm);
     li.appendChild(contentDiv);
 
-
-    // Container cho các nút hành động (Sửa, Xóa)
     const actionsDiv = document.createElement('div');
     actionsDiv.classList.add('actions');
 
-    // Nút Sửa
     const editButton = document.createElement('button');
     editButton.textContent = 'Sửa';
     editButton.classList.add('btn', 'btn-warning', 'btn-sm');
     editButton.addEventListener('click', (e) => {
         e.stopPropagation();
-        // Vào chế độ chỉnh sửa
         li.classList.add('editing');
-        nameSpan.style.display = 'none'; // Ẩn tên
-        editForm.style.display = 'flex'; // Hiện form sửa
-        actionsDiv.style.display = 'none'; // Ẩn nút Sửa/Xóa
-        editInput.focus(); // Focus vào input
-        editInput.select(); // Chọn toàn bộ text cũ
+        nameSpan.style.display = 'none';
+        editForm.style.display = 'flex';
+        actionsDiv.style.display = 'none';
+        editInput.focus();
+        editInput.select();
     });
     actionsDiv.appendChild(editButton);
 
-
-    // Nút Xóa
     const deleteButton = document.createElement('button');
     deleteButton.textContent = 'Xóa';
     deleteButton.classList.add('btn', 'btn-danger', 'btn-sm');
@@ -343,12 +352,6 @@ function createClassListItem(classId, className) {
     return li;
 }
 
-
-/**
- * Cập nhật tên lớp học trong Firestore.
- * @param {string} classId ID của lớp học
- * @param {string} newName Tên mới
- */
 async function updateClassName(classId, newName) {
     if (!currentUser || !classId || !newName) return;
     const classRef = db.collection('users').doc(currentUser.uid).collection('classes').doc(classId);
@@ -357,31 +360,47 @@ async function updateClassName(classId, newName) {
         console.log(`Đã cập nhật tên lớp ${classId} thành "${newName}"`);
     } catch (error) {
         console.error("Lỗi cập nhật tên lớp:", error);
-        throw error; // Ném lỗi ra để hàm gọi xử lý (ví dụ: hiển thị alert)
+        throw error;
     }
 }
 
-
 async function deleteClass(classId, className) {
     if (!currentUser || !classId) return;
-    const confirmation = confirm(`Bạn có chắc chắn muốn xóa lớp "${className}" không? Hành động này sẽ xóa cả lớp và TOÀN BỘ học sinh trong lớp đó và không thể hoàn tác.`);
+    const confirmation = confirm(`Bạn có chắc chắn muốn xóa lớp "${className}" không? Hành động này sẽ xóa cả lớp và TOÀN BỘ học sinh, điểm danh trong lớp đó và không thể hoàn tác.`);
     if (!confirmation) { console.log("Hủy bỏ thao tác xóa lớp."); return; }
 
     console.log(`Bắt đầu xóa lớp: ${className} (ID: ${classId})`);
     const classRef = db.collection('users').doc(currentUser.uid).collection('classes').doc(classId);
-    const studentsRef = classRef.collection('students');
 
     try {
+        // Xóa subcollection 'students'
+        const studentsRef = classRef.collection('students');
         const studentSnapshot = await studentsRef.get();
         if (!studentSnapshot.empty) {
             console.log(`Tìm thấy ${studentSnapshot.size} học sinh để xóa...`);
-            const batch = db.batch();
-            studentSnapshot.forEach(doc => batch.delete(doc.ref));
-            await batch.commit();
+            const batchStudents = db.batch();
+            studentSnapshot.forEach(doc => batchStudents.delete(doc.ref));
+            await batchStudents.commit();
             console.log("Đã xóa xong học sinh.");
         } else {
             console.log("Không có học sinh nào trong lớp để xóa.");
         }
+
+        // Xóa subcollection 'attendance' (MỚI)
+        const attendanceRef = classRef.collection('attendance');
+        const attendanceSnapshot = await attendanceRef.get();
+         if (!attendanceSnapshot.empty) {
+            console.log(`Tìm thấy ${attendanceSnapshot.size} bản ghi điểm danh để xóa...`);
+            const batchAttendance = db.batch();
+            attendanceSnapshot.forEach(doc => batchAttendance.delete(doc.ref));
+            await batchAttendance.commit();
+            console.log("Đã xóa xong dữ liệu điểm danh.");
+        } else {
+            console.log("Không có dữ liệu điểm danh nào trong lớp để xóa.");
+        }
+
+
+        // Xóa document của lớp học
         await classRef.delete();
         console.log(`Đã xóa thành công lớp: ${className}`);
     } catch (error) {
@@ -397,9 +416,13 @@ function viewClassDetail(classId, className) {
     currentClassId = classId;
     detailClassNameH1.textContent = `Lớp: ${className}`;
     studentListUl.innerHTML = '<li class="loading-placeholder">Đang tải danh sách học sinh...</li>';
+    attendanceListUl.innerHTML = '<li class="loading-placeholder">Chọn ngày để xem điểm danh...</li>'; // Reset điểm danh
     clearErrors();
     showView('class-detail-view');
-    loadStudents(classId);
+    loadStudents(classId); // Tải danh sách học sinh (cần cho cả quản lý HS và điểm danh)
+
+    // Khởi tạo và xử lý điểm danh (MỚI)
+    initializeAttendance();
 }
 
 function loadStudents(classId) {
@@ -411,49 +434,48 @@ function loadStudents(classId) {
                           .collection('students')
                           .orderBy('name', 'asc')
                           .onSnapshot(snapshot => {
-        studentListUl.innerHTML = '';
+        studentListUl.innerHTML = ''; // Xóa list quản lý học sinh
+        // Lưu danh sách học sinh để dùng cho điểm danh
+        const students = [];
         if (snapshot.empty) {
             studentListUl.innerHTML = '<li class="loading-placeholder">Chưa có học sinh nào trong lớp này.</li>';
-            return;
+        } else {
+             snapshot.forEach(doc => {
+                const studentData = doc.data();
+                students.push({ id: doc.id, name: studentData.name }); // Lưu id và tên
+                const li = createStudentListItem(doc.id, studentData.name);
+                studentListUl.appendChild(li);
+            });
         }
-        snapshot.forEach(doc => {
-            const studentData = doc.data();
-            const li = createStudentListItem(doc.id, studentData.name); // Gọi hàm tạo li
-            studentListUl.appendChild(li);
-        });
-         console.log(`Đã tải và hiển thị danh sách học sinh cho lớp ${classId}.`);
+        // Sau khi tải xong danh sách học sinh, tải điểm danh cho ngày hiện tại (hoặc ngày đang chọn)
+        const selectedDate = attendanceDateInput.value || getCurrentDateString();
+        loadAttendance(classId, selectedDate, students); // Truyền danh sách học sinh vào
+
+        console.log(`Đã tải và hiển thị danh sách học sinh cho lớp ${classId}.`);
     }, error => {
         console.error(`Lỗi tải danh sách học sinh cho lớp ${classId}: `, error);
         displayError(studentError, `Lỗi tải học sinh: ${error.message}`);
         studentListUl.innerHTML = '<li class="loading-placeholder">Có lỗi xảy ra khi tải danh sách học sinh.</li>';
+        attendanceListUl.innerHTML = '<li class="loading-placeholder">Lỗi tải danh sách học sinh, không thể điểm danh.</li>'; // Cập nhật list điểm danh
     });
      console.log(`Bắt đầu lắng nghe danh sách học sinh cho lớp ${classId}.`);
 }
 
-/**
- * Tạo một phần tử list item (li) cho học sinh.
- * @param {string} studentId ID của học sinh
- * @param {string} studentName Tên của học sinh
- * @returns {HTMLLIElement} Phần tử li đã được tạo
- */
 function createStudentListItem(studentId, studentName) {
     const li = document.createElement('li');
     li.dataset.id = studentId;
 
-     // Container cho nội dung (tên hoặc form sửa)
     const contentDiv = document.createElement('div');
     contentDiv.classList.add('item-content');
 
-    // Span hiển thị tên học sinh
     const nameSpan = document.createElement('span');
     nameSpan.textContent = studentName;
     nameSpan.classList.add('item-name');
     contentDiv.appendChild(nameSpan);
 
-     // Form sửa tên học sinh (ẩn ban đầu)
     const editForm = document.createElement('form');
     editForm.classList.add('edit-form');
-    editForm.style.display = 'none'; // Ẩn ban đầu
+    editForm.style.display = 'none';
 
     const editInput = document.createElement('input');
     editInput.type = 'text';
@@ -468,15 +490,14 @@ function createStudentListItem(studentId, studentName) {
     editForm.appendChild(saveButton);
 
     const cancelButton = document.createElement('button');
-    cancelButton.type = 'button'; // Quan trọng: không phải submit
+    cancelButton.type = 'button';
     cancelButton.textContent = 'Hủy';
     cancelButton.classList.add('btn', 'btn-secondary', 'btn-sm');
     cancelButton.addEventListener('click', () => {
-        // Thoát chế độ chỉnh sửa
         li.classList.remove('editing');
-        nameSpan.style.display = ''; // Hiện lại tên
-        editForm.style.display = 'none'; // Ẩn form
-        actionsDiv.style.display = ''; // Hiện lại nút Sửa/Xóa
+        nameSpan.style.display = '';
+        editForm.style.display = 'none';
+        actionsDiv.style.display = '';
     });
     editForm.appendChild(cancelButton);
 
@@ -486,14 +507,12 @@ function createStudentListItem(studentId, studentName) {
         if (newName && newName !== studentName) {
             try {
                 await updateStudentName(studentId, newName);
-                // Tự động thoát chế độ sửa sau khi lưu thành công (onSnapshot sẽ cập nhật tên)
-                 cancelButton.click(); // Giả lập click nút hủy để reset UI
+                 cancelButton.click();
             } catch (error) {
                 console.error("Lỗi cập nhật tên học sinh:", error);
                 alert(`Không thể cập nhật tên học sinh: ${error.message}`);
             }
         } else if (newName === studentName) {
-             // Nếu tên không đổi, chỉ cần thoát chế độ sửa
              cancelButton.click();
         } else {
             alert("Tên học sinh không được để trống.");
@@ -503,34 +522,29 @@ function createStudentListItem(studentId, studentName) {
     contentDiv.appendChild(editForm);
     li.appendChild(contentDiv);
 
-
-    // Container cho các nút hành động (Sửa, Xóa)
     const actionsDiv = document.createElement('div');
     actionsDiv.classList.add('actions');
 
-    // Nút Sửa
     const editButton = document.createElement('button');
     editButton.textContent = 'Sửa';
     editButton.classList.add('btn', 'btn-warning', 'btn-sm');
     editButton.addEventListener('click', (e) => {
         e.stopPropagation();
-         // Vào chế độ chỉnh sửa
         li.classList.add('editing');
-        nameSpan.style.display = 'none'; // Ẩn tên
-        editForm.style.display = 'flex'; // Hiện form sửa
-        actionsDiv.style.display = 'none'; // Ẩn nút Sửa/Xóa
-        editInput.focus(); // Focus vào input
-        editInput.select(); // Chọn toàn bộ text cũ
+        nameSpan.style.display = 'none';
+        editForm.style.display = 'flex';
+        actionsDiv.style.display = 'none';
+        editInput.focus();
+        editInput.select();
     });
     actionsDiv.appendChild(editButton);
 
-    // Nút Xóa
     const deleteButton = document.createElement('button');
     deleteButton.textContent = 'Xóa';
     deleteButton.classList.add('btn', 'btn-danger', 'btn-sm');
     deleteButton.addEventListener('click', (e) => {
         e.stopPropagation();
-        deleteStudent(studentId, studentName); // Gọi hàm xóa học sinh
+        deleteStudent(studentId, studentName);
     });
     actionsDiv.appendChild(deleteButton);
 
@@ -539,11 +553,6 @@ function createStudentListItem(studentId, studentName) {
     return li;
 }
 
-/**
- * Cập nhật tên học sinh trong Firestore.
- * @param {string} studentId ID của học sinh
- * @param {string} newName Tên mới
- */
 async function updateStudentName(studentId, newName) {
     if (!currentUser || !currentClassId || !studentId || !newName) return;
     const studentRef = db.collection('users').doc(currentUser.uid)
@@ -554,40 +563,39 @@ async function updateStudentName(studentId, newName) {
         console.log(`Đã cập nhật tên học sinh ${studentId} thành "${newName}"`);
     } catch (error) {
         console.error("Lỗi cập nhật tên học sinh:", error);
-        throw error; // Ném lỗi ra để hàm gọi xử lý
+        throw error;
     }
 }
 
-
-/**
- * Hàm xóa một học sinh.
- * @param {string} studentId ID của học sinh cần xóa
- * @param {string} studentName Tên học sinh (để hiển thị xác nhận)
- */
 async function deleteStudent(studentId, studentName) {
     if (!currentUser || !currentClassId || !studentId) return;
+    const confirmation = confirm(`Bạn có chắc chắn muốn xóa học sinh "${studentName}" khỏi lớp này không? Dữ liệu điểm danh của học sinh này cũng sẽ bị ảnh hưởng.`);
+    if (!confirmation) { console.log("Hủy bỏ thao tác xóa học sinh."); return; }
 
-    const confirmation = confirm(`Bạn có chắc chắn muốn xóa học sinh "${studentName}" khỏi lớp này không?`);
+    console.log(`Bắt đầu xóa học sinh: ${studentName} (ID: ${studentId})`);
+    const studentRef = db.collection('users').doc(currentUser.uid)
+                       .collection('classes').doc(currentClassId)
+                       .collection('students').doc(studentId);
+    try {
+        await studentRef.delete();
+        console.log(`Đã xóa thành công học sinh: ${studentName}`);
+        // Cần cập nhật lại cả danh sách điểm danh nếu đang hiển thị
+        const selectedDate = attendanceDateInput.value || getCurrentDateString();
+        // Tải lại danh sách học sinh (đã loại bỏ em vừa xóa)
+        const updatedStudentsSnapshot = await db.collection('users').doc(currentUser.uid)
+                                            .collection('classes').doc(currentClassId)
+                                            .collection('students')
+                                            .orderBy('name', 'asc').get();
+        const updatedStudents = updatedStudentsSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+        // Tải lại điểm danh với danh sách học sinh mới
+        loadAttendance(currentClassId, selectedDate, updatedStudents);
 
-    if (confirmation) {
-        console.log(`Bắt đầu xóa học sinh: ${studentName} (ID: ${studentId})`);
-        const studentRef = db.collection('users').doc(currentUser.uid)
-                           .collection('classes').doc(currentClassId)
-                           .collection('students').doc(studentId);
-        try {
-            await studentRef.delete();
-            console.log(`Đã xóa thành công học sinh: ${studentName}`);
-            // Giao diện sẽ tự cập nhật nhờ onSnapshot của loadStudents
-        } catch (error) {
-            console.error(`Lỗi khi xóa học sinh "${studentName}": `, error);
-            displayError(studentError, `Không thể xóa học sinh "${studentName}": ${error.message}`);
-            alert(`Đã xảy ra lỗi khi xóa học sinh "${studentName}". Vui lòng thử lại.`);
-        }
-    } else {
-        console.log("Hủy bỏ thao tác xóa học sinh.");
+    } catch (error) {
+        console.error(`Lỗi khi xóa học sinh "${studentName}": `, error);
+        displayError(studentError, `Không thể xóa học sinh "${studentName}": ${error.message}`);
+        alert(`Đã xảy ra lỗi khi xóa học sinh "${studentName}". Vui lòng thử lại.`);
     }
 }
-
 
 addStudentForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -605,6 +613,7 @@ addStudentForm.addEventListener('submit', (e) => {
     .then(() => {
         console.log(`Đã thêm học sinh "${studentName}" vào lớp ${currentClassId}`);
         studentNameInput.value = '';
+        // Không cần load lại attendance ở đây vì onSnapshot của loadStudents sẽ làm
     })
     .catch(error => {
         console.error("Lỗi thêm học sinh: ", error);
@@ -612,11 +621,172 @@ addStudentForm.addEventListener('submit', (e) => {
     });
 });
 
+// --- QUẢN LÝ ĐIỂM DANH (MỚI) ---
+
+/**
+ * Khởi tạo phần điểm danh: đặt ngày mặc định và thêm event listener.
+ */
+function initializeAttendance() {
+    attendanceDateInput.value = getCurrentDateString(); // Đặt ngày hiện tại làm mặc định
+    // Xóa event listener cũ nếu có để tránh bị gọi nhiều lần
+    attendanceDateInput.removeEventListener('change', handleDateChange);
+    // Thêm event listener mới
+    attendanceDateInput.addEventListener('change', handleDateChange);
+    // Tải điểm danh cho ngày mặc định (sẽ được gọi trong loadStudents)
+}
+
+/**
+ * Xử lý sự kiện khi ngày điểm danh thay đổi.
+ */
+function handleDateChange() {
+    if (!currentClassId) return;
+    const selectedDate = attendanceDateInput.value;
+    if (selectedDate) {
+        console.log("Ngày điểm danh thay đổi:", selectedDate);
+        attendanceListUl.innerHTML = '<li class="loading-placeholder">Đang tải điểm danh...</li>';
+         // Cần lấy lại danh sách học sinh hiện tại để truyền vào loadAttendance
+         db.collection('users').doc(currentUser.uid)
+           .collection('classes').doc(currentClassId)
+           .collection('students')
+           .orderBy('name', 'asc').get()
+           .then(snapshot => {
+               const students = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+               loadAttendance(currentClassId, selectedDate, students);
+           })
+           .catch(error => {
+               console.error("Lỗi lấy lại danh sách học sinh khi đổi ngày:", error);
+               displayError(attendanceError, `Lỗi tải lại học sinh: ${error.message}`);
+               attendanceListUl.innerHTML = '<li class="loading-placeholder">Lỗi tải danh sách học sinh.</li>';
+           });
+
+    }
+}
+
+/**
+ * Tải và hiển thị danh sách điểm danh cho một ngày cụ thể.
+ * @param {string} classId ID của lớp học
+ * @param {string} dateString Ngày điểm danh (YYYY-MM-DD)
+ * @param {Array<{id: string, name: string}>} students Danh sách học sinh của lớp
+ */
+async function loadAttendance(classId, dateString, students) {
+    if (!currentUser || !classId || !dateString || !students) {
+         attendanceListUl.innerHTML = '<li class="loading-placeholder">Thiếu thông tin để tải điểm danh.</li>';
+         return;
+    }
+    console.log(`Tải điểm danh cho lớp ${classId}, ngày ${dateString}`);
+    attendanceListUl.innerHTML = ''; // Xóa danh sách cũ
+    clearErrors(); // Xóa lỗi cũ
+
+    // Lấy dữ liệu điểm danh cho ngày này
+    const attendanceDocRef = db.collection('users').doc(currentUser.uid)
+                               .collection('classes').doc(classId)
+                               .collection('attendance').doc(dateString);
+
+    try {
+        const attendanceDoc = await attendanceDocRef.get();
+        const attendanceData = attendanceDoc.exists ? attendanceDoc.data() : { absentStudents: {} };
+        const absentStudentsMap = attendanceData.absentStudents || {}; // Map các học sinh vắng
+
+        if (students.length === 0) {
+            attendanceListUl.innerHTML = '<li class="loading-placeholder">Chưa có học sinh trong lớp để điểm danh.</li>';
+            return;
+        }
+
+        // Hiển thị danh sách học sinh với trạng thái điểm danh
+        students.forEach(student => {
+            const isAbsent = absentStudentsMap[student.id] === true; // Kiểm tra có vắng không
+            const li = createAttendanceListItem(student.id, student.name, isAbsent, dateString);
+            attendanceListUl.appendChild(li);
+        });
+         console.log("Đã hiển thị danh sách điểm danh.");
+
+    } catch (error) {
+        console.error(`Lỗi tải điểm danh ngày ${dateString}: `, error);
+        displayError(attendanceError, `Lỗi tải điểm danh: ${error.message}`);
+        attendanceListUl.innerHTML = '<li class="loading-placeholder">Có lỗi xảy ra khi tải điểm danh.</li>';
+    }
+}
+
+/**
+ * Tạo một phần tử list item (li) cho danh sách điểm danh.
+ * @param {string} studentId ID học sinh
+ * @param {string} studentName Tên học sinh
+ * @param {boolean} isAbsent Trạng thái vắng mặt
+ * @param {string} dateString Ngày điểm danh (YYYY-MM-DD)
+ * @returns {HTMLLIElement} Phần tử li đã được tạo
+ */
+function createAttendanceListItem(studentId, studentName, isAbsent, dateString) {
+    const li = document.createElement('li');
+    li.dataset.id = studentId;
+    li.textContent = studentName;
+    li.classList.toggle('absent', isAbsent); // Thêm class 'absent' nếu vắng
+
+    li.addEventListener('click', () => {
+        toggleAttendance(studentId, isAbsent, dateString); // Gọi hàm xử lý khi click
+    });
+
+    return li;
+}
+
+/**
+ * Thay đổi trạng thái điểm danh (vắng/có mặt) cho học sinh.
+ * @param {string} studentId ID học sinh
+ * @param {boolean} wasAbsent Trạng thái vắng mặt hiện tại
+ * @param {string} dateString Ngày điểm danh (YYYY-MM-DD)
+ */
+async function toggleAttendance(studentId, wasAbsent, dateString) {
+    if (!currentUser || !currentClassId || !studentId || !dateString) return;
+
+    const attendanceDocRef = db.collection('users').doc(currentUser.uid)
+                               .collection('classes').doc(currentClassId)
+                               .collection('attendance').doc(dateString);
+
+    const studentKey = `absentStudents.${studentId}`; // Key để cập nhật trong map
+
+    try {
+        if (wasAbsent) {
+            // Nếu đang vắng -> chuyển thành có mặt (xóa khỏi map)
+            await attendanceDocRef.update({
+                [studentKey]: firebase.firestore.FieldValue.delete() // Xóa field trong map
+            });
+            console.log(`Đã điểm danh có mặt cho HS ${studentId} ngày ${dateString}`);
+        } else {
+            // Nếu đang có mặt -> chuyển thành vắng (thêm vào map)
+            // Sử dụng set với merge:true để tạo document nếu chưa có, hoặc cập nhật nếu đã có
+            await attendanceDocRef.set({
+                absentStudents: {
+                    [studentId]: true // Đánh dấu là vắng
+                }
+            }, { merge: true }); // Merge để không ghi đè các học sinh vắng khác
+            console.log(`Đã điểm danh vắng mặt cho HS ${studentId} ngày ${dateString}`);
+        }
+        // Tải lại giao diện điểm danh để cập nhật trạng thái
+         // Cần lấy lại danh sách học sinh hiện tại
+         const studentsSnapshot = await db.collection('users').doc(currentUser.uid)
+                                         .collection('classes').doc(currentClassId)
+                                         .collection('students')
+                                         .orderBy('name', 'asc').get();
+         const students = studentsSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+         loadAttendance(currentClassId, dateString, students);
+
+    } catch (error) {
+        console.error(`Lỗi cập nhật điểm danh cho HS ${studentId} ngày ${dateString}: `, error);
+        displayError(attendanceError, `Lỗi cập nhật điểm danh: ${error.message}`);
+        alert("Có lỗi xảy ra khi cập nhật điểm danh, vui lòng thử lại.");
+    }
+}
+
+
+// --- XỬ LÝ NÚT QUAY LẠI ---
 backToDashboardButton.addEventListener('click', () => {
     if (unsubscribeStudents) unsubscribeStudents();
+    // Không cần unsubscribe attendance vì không dùng listener real-time
+    // if (unsubscribeAttendance) unsubscribeAttendance();
     unsubscribeStudents = null;
+    // unsubscribeAttendance = null;
     currentClassId = null;
     studentListUl.innerHTML = '';
+    attendanceListUl.innerHTML = ''; // Xóa list điểm danh khi quay lại
     clearErrors();
     showView('dashboard-view');
 });
