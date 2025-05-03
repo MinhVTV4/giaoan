@@ -1,24 +1,29 @@
 // app.js
 
 // --- CẤU HÌNH FIREBASE ---
-// !!! THAY THẾ BẰNG CẤU HÌNH FIREBASE CỦA BẠN !!!
-// Bạn lấy thông tin này từ Project settings -> General -> Your apps -> Web app -> Firebase SDK snippet -> Config
+// Đã cập nhật với thông tin cấu hình của bạn
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY", // Thay bằng API Key của bạn
-  authDomain: "YOUR_AUTH_DOMAIN", // Thay bằng Auth Domain của bạn
-  projectId: "YOUR_PROJECT_ID", // Thay bằng Project ID của bạn
-  storageBucket: "YOUR_STORAGE_BUCKET", // Thay bằng Storage Bucket của bạn
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID", // Thay bằng Messaging Sender ID của bạn
-  appId: "YOUR_APP_ID" // Thay bằng App ID của bạn
+  apiKey: "AIzaSyA2818INoMI_LNIi3kTilRMUQXZ9S6yJjE", // API Key của bạn
+  authDomain: "giaoandientu-7782.firebaseapp.com", // Auth Domain của bạn
+  projectId: "giaoandientu-7782", // Project ID của bạn
+  storageBucket: "giaoandientu-7782.firebasestorage.app", // Storage Bucket của bạn (Lưu ý: Tên bucket thường không có 'firebasestorage.app' trong config, nhưng tôi giữ nguyên theo bạn cung cấp. Hãy kiểm tra lại nếu có lỗi)
+  messagingSenderId: "585204135383", // Messaging Sender ID của bạn
+  appId: "1:585204135383:web:78c7566be2083638290792", // App ID của bạn
+  measurementId: "G-4F3MHQT43X" // Measurement ID của bạn (tùy chọn)
 };
 
 // --- KHỞI TẠO FIREBASE ---
+// Sử dụng API tương thích (compat) như trong các file HTML đã nạp
 try {
     firebase.initializeApp(firebaseConfig);
+    // Không cần khởi tạo analytics ở đây nếu không dùng đến trong MVP này
+    // và nếu bạn đang dùng SDK compat như trong HTML
+    // Nếu muốn dùng Analytics với SDK mới (modular), cách import và sử dụng sẽ khác
 } catch (e) {
     console.error("Lỗi khởi tạo Firebase:", e);
     alert("Không thể khởi tạo ứng dụng. Vui lòng kiểm tra cấu hình Firebase trong app.js và kết nối mạng.");
 }
+// Sử dụng API compat
 const auth = firebase.auth();
 const db = firebase.firestore();
 
@@ -275,15 +280,22 @@ function loadClasses() {
             snapshot.forEach(doc => {
                 const classData = doc.data();
                 const li = document.createElement('li');
-                li.textContent = classData.name;
-                li.dataset.id = doc.id; // Lưu ID của lớp vào thuộc tính data-id để dùng sau
-                li.dataset.name = classData.name; // Lưu tên lớp để dùng khi chuyển view
-                li.classList.add('class-item'); // Thêm class để dễ dàng style và bắt sự kiện
-
-                // Thêm sự kiện click để xem chi tiết lớp
-                li.addEventListener('click', () => {
+                // Tạo span chứa tên lớp để click vào xem chi tiết
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = classData.name;
+                nameSpan.style.cursor = 'pointer'; // Đổi con trỏ khi di chuột vào tên
+                nameSpan.style.flexGrow = '1'; // Cho phép tên lớp chiếm không gian
+                nameSpan.style.marginRight = '10px'; // Khoảng cách với nút xóa
+                nameSpan.addEventListener('click', (e) => {
+                    // Ngăn sự kiện click lan ra thẻ li (nếu có)
+                    e.stopPropagation();
                     viewClassDetail(doc.id, classData.name);
                 });
+                li.appendChild(nameSpan);
+
+                li.dataset.id = doc.id; // Lưu ID của lớp vào thuộc tính data-id để dùng sau
+                li.dataset.name = classData.name; // Lưu tên lớp để dùng khi chuyển view
+                li.classList.add('class-item'); // Thêm class để dễ dàng style
 
                 classListUl.appendChild(li); // Thêm mục lớp học vào danh sách trên UI
             });
@@ -341,9 +353,15 @@ function loadStudents(classId) {
         snapshot.forEach(doc => {
             const studentData = doc.data();
             const li = document.createElement('li');
-            li.textContent = studentData.name;
+            // Tạo span chứa tên học sinh
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = studentData.name;
+            nameSpan.style.flexGrow = '1'; // Cho phép tên chiếm không gian
+            nameSpan.style.marginRight = '10px'; // Khoảng cách với nút xóa
+            li.appendChild(nameSpan);
+
             li.dataset.id = doc.id; // Lưu ID học sinh (có thể dùng để sửa/xóa sau này)
-            // Trong MVP chưa có action gì khi click vào học sinh
+
             studentListUl.appendChild(li);
         });
          console.log(`Đã tải và hiển thị danh sách học sinh cho lớp ${classId}.`);
