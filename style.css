@@ -65,7 +65,8 @@ body {
 
 input[type="text"],
 input[type="email"],
-input[type="password"] {
+input[type="password"],
+input[type="date"] { /* Thêm input date */
     width: 100%; /* Chiếm toàn bộ chiều rộng */
     padding: 12px 15px;
     border: 1px solid #ccc;
@@ -73,11 +74,14 @@ input[type="password"] {
     box-sizing: border-box; /* Tính cả padding và border vào width */
     font-size: 1rem;
     transition: border-color 0.2s ease-in-out;
+    /* Đảm bảo font chữ kế thừa */
+    font-family: inherit;
 }
 
 input[type="text"]:focus,
 input[type="email"]:focus,
-input[type="password"]:focus {
+input[type="password"]:focus,
+input[type="date"]:focus { /* Thêm input date */
     border-color: #007bff; /* Đổi màu viền khi focus */
     outline: none; /* Bỏ viền focus mặc định */
 }
@@ -231,7 +235,7 @@ input[type="password"]:focus {
     display: flex; /* Sử dụng flexbox để căn chỉnh tên và nút */
     justify-content: space-between; /* Đẩy tên và nút ra hai bên */
     align-items: center; /* Căn giữa theo chiều dọc */
-    transition: background-color 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease; /* Thêm transition cho border */
     min-height: 40px; /* Đảm bảo chiều cao tối thiểu ổn định khi sửa inline */
 }
 
@@ -305,6 +309,50 @@ hr {
     margin: 25px 0;
 }
 
+/* --- Kiểu cho Phần Điểm danh --- */
+.attendance-controls {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap; /* Cho phép xuống dòng */
+}
+
+.attendance-controls label {
+    font-weight: 500;
+    color: #555;
+    flex-shrink: 0; /* Không co lại */
+}
+
+.attendance-controls input[type="date"] {
+    width: auto; /* Cho phép chiều rộng tự động */
+    flex-grow: 1; /* Chiếm không gian còn lại */
+    max-width: 200px; /* Giới hạn chiều rộng tối đa */
+}
+
+.attendance-list li {
+    cursor: pointer; /* Cho phép click để điểm danh */
+    /* Hiệu ứng chuyển đổi mượt mà hơn */
+    transition: background-color 0.2s ease, border-left 0.2s ease, opacity 0.2s ease;
+    border-left: 5px solid transparent; /* Viền trái để chỉ trạng thái */
+}
+
+.attendance-list li:hover {
+    background-color: #e9ecef;
+}
+
+.attendance-list li.absent {
+    background-color: #f8d7da; /* Nền đỏ nhạt cho học sinh vắng */
+    border-left-color: #dc3545; /* Viền trái màu đỏ */
+    /* opacity: 0.7; */ /* Có thể làm mờ đi một chút */
+    color: #721c24; /* Màu chữ đậm hơn */
+}
+
+.attendance-list li.absent:hover {
+    background-color: #f1c6cb; /* Đậm hơn khi hover */
+}
+
+
 /* Responsive Design */
 @media (max-width: 600px) {
     .container {
@@ -357,5 +405,13 @@ hr {
          width: 100%; /* Nút chiếm hết chiều rộng */
          margin-left: 0; /* Bỏ margin trái */
          margin-right: 0;
+     }
+
+     .attendance-controls {
+        flex-direction: column;
+        align-items: stretch;
+     }
+     .attendance-controls input[type="date"] {
+         max-width: none; /* Bỏ giới hạn max-width trên mobile */
      }
 }
