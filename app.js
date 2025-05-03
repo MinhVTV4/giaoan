@@ -55,7 +55,7 @@ const detailClassNameH1 = document.getElementById('detail-class-name');
 const backToDashboardButton = document.getElementById('back-to-dashboard-button');
 const studentError = document.getElementById('student-error');
 
-// Attendance Elements (MỚI)
+// Attendance Elements
 const attendanceSection = document.getElementById('attendance-section');
 const attendanceDateInput = document.getElementById('attendance-date');
 const attendanceListUl = document.getElementById('attendance-list');
@@ -67,8 +67,6 @@ let currentUser = null;
 let currentClassId = null;
 let unsubscribeClasses = null;
 let unsubscribeStudents = null;
-// Không cần listener real-time cho attendance trong phiên bản này
-// let unsubscribeAttendance = null;
 
 // --- HÀM TIỆN ÍCH ---
 function showView(viewId) {
@@ -87,7 +85,7 @@ function clearErrors() {
     registerError.textContent = '';
     classError.textContent = '';
     studentError.textContent = '';
-    attendanceError.textContent = ''; // Thêm xóa lỗi điểm danh
+    attendanceError.textContent = '';
 }
 
 function displayError(element, message) {
@@ -98,14 +96,10 @@ function displayError(element, message) {
     }
 }
 
-/**
- * Lấy ngày hiện tại dưới dạng chuỗi 'YYYY-MM-DD'.
- * @returns {string} Chuỗi ngày tháng năm.
- */
 function getCurrentDateString() {
     const today = new Date();
     const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0'); // Tháng bắt đầu từ 0
+    const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 }
@@ -122,13 +116,11 @@ auth.onAuthStateChanged(user => {
         currentUser = null;
         if (unsubscribeClasses) unsubscribeClasses();
         if (unsubscribeStudents) unsubscribeStudents();
-        // if (unsubscribeAttendance) unsubscribeAttendance(); // Nếu có listener real-time
         unsubscribeClasses = null;
         unsubscribeStudents = null;
-        // unsubscribeAttendance = null;
         classListUl.innerHTML = '';
         studentListUl.innerHTML = '';
-        attendanceListUl.innerHTML = ''; // Xóa danh sách điểm danh khi logout
+        attendanceListUl.innerHTML = '';
         loginForm.reset();
         registerForm.reset();
         showView('auth-view');
@@ -137,7 +129,6 @@ auth.onAuthStateChanged(user => {
     }
 });
 
-// (Các hàm xử lý đăng nhập, đăng ký, logout, mapAuthError giữ nguyên như trước)
 loginForm.addEventListener('submit', (e) => {
     e.preventDefault();
     clearErrors();
@@ -145,7 +136,7 @@ loginForm.addEventListener('submit', (e) => {
     const password = loginPasswordInput.value;
     auth.signInWithEmailAndPassword(email, password)
         .then((userCredential) => {
-            console.log("Đăng nhập thành công:", userCredential.user);
+            console.log("Đăng nhập thành công:", userCredential.user.email); // Giữ log này
         })
         .catch(error => {
             console.error("Lỗi đăng nhập:", error);
@@ -164,7 +155,7 @@ registerForm.addEventListener('submit', (e) => {
     }
     auth.createUserWithEmailAndPassword(email, password)
         .then((userCredential) => {
-            console.log("Đăng ký thành công:", userCredential.user);
+            console.log("Đăng ký thành công:", userCredential.user.email); // Giữ log này
         })
         .catch(error => {
             console.error("Lỗi đăng ký:", error);
@@ -242,13 +233,13 @@ function loadClasses() {
                 const li = createClassListItem(doc.id, classData.name);
                 classListUl.appendChild(li);
             });
-            console.log("Đã tải và hiển thị danh sách lớp.");
+            // console.log("Đã tải và hiển thị danh sách lớp."); // Có thể bỏ log này nếu muốn
         }, error => {
             console.error("Lỗi tải danh sách lớp: ", error);
             displayError(classError, `Lỗi tải lớp: ${error.message}`);
             classListUl.innerHTML = '<li class="loading-placeholder">Có lỗi xảy ra khi tải danh sách lớp.</li>';
         });
-    console.log("Bắt đầu lắng nghe danh sách lớp.");
+    // console.log("Bắt đầu lắng nghe danh sách lớp."); // Có thể bỏ log này
 }
 
 function createClassListItem(classId, className) {
@@ -386,7 +377,7 @@ async function deleteClass(classId, className) {
             console.log("Không có học sinh nào trong lớp để xóa.");
         }
 
-        // Xóa subcollection 'attendance' (MỚI)
+        // Xóa subcollection 'attendance'
         const attendanceRef = classRef.collection('attendance');
         const attendanceSnapshot = await attendanceRef.get();
          if (!attendanceSnapshot.empty) {
@@ -416,53 +407,46 @@ function viewClassDetail(classId, className) {
     currentClassId = classId;
     detailClassNameH1.textContent = `Lớp: ${className}`;
     studentListUl.innerHTML = '<li class="loading-placeholder">Đang tải danh sách học sinh...</li>';
-    attendanceListUl.innerHTML = '<li class="loading-placeholder">Chọn ngày để xem điểm danh...</li>'; // Reset điểm danh
+    attendanceListUl.innerHTML = '<li class="loading-placeholder">Chọn ngày để xem điểm danh...</li>';
     clearErrors();
     showView('class-detail-view');
 
-    // Khởi tạo và xử lý điểm danh TRƯỚC khi gọi loadStudents
-    initializeAttendance(); // Đảm bảo ngày được đặt và listener được gắn
-
-    loadStudents(classId); // Tải danh sách học sinh (sẽ gọi loadAttendance sau)
+    initializeAttendance();
+    loadStudents(classId);
 }
 
 function loadStudents(classId) {
     if (!currentUser || !classId) return;
     if (unsubscribeStudents) unsubscribeStudents();
-    console.log("[DEBUG] Bắt đầu loadStudents cho lớp:", classId); // DEBUG LOG
 
     unsubscribeStudents = db.collection('users').doc(currentUser.uid)
                           .collection('classes').doc(classId)
                           .collection('students')
                           .orderBy('name', 'asc')
                           .onSnapshot(snapshot => {
-        console.log("[DEBUG] Nhận snapshot học sinh:", snapshot.size, "học sinh"); // DEBUG LOG
-        studentListUl.innerHTML = ''; // Xóa list quản lý học sinh
-        // Lưu danh sách học sinh để dùng cho điểm danh
+        studentListUl.innerHTML = '';
         const students = [];
         if (snapshot.empty) {
             studentListUl.innerHTML = '<li class="loading-placeholder">Chưa có học sinh nào trong lớp này.</li>';
         } else {
              snapshot.forEach(doc => {
                 const studentData = doc.data();
-                students.push({ id: doc.id, name: studentData.name }); // Lưu id và tên
+                students.push({ id: doc.id, name: studentData.name });
                 const li = createStudentListItem(doc.id, studentData.name);
                 studentListUl.appendChild(li);
             });
         }
-        // Sau khi tải xong danh sách học sinh, tải điểm danh cho ngày hiện tại (hoặc ngày đang chọn)
         const selectedDate = attendanceDateInput.value || getCurrentDateString();
-        console.log("[DEBUG] Gọi loadAttendance từ loadStudents với ngày:", selectedDate, "và", students.length, "học sinh"); // DEBUG LOG
-        loadAttendance(classId, selectedDate, students); // Truyền danh sách học sinh vào
+        loadAttendance(classId, selectedDate, students);
 
-        console.log(`Đã tải và hiển thị danh sách học sinh cho lớp ${classId}.`);
+        // console.log(`Đã tải và hiển thị danh sách học sinh cho lớp ${classId}.`); // Có thể bỏ log này
     }, error => {
-        console.error(`Lỗi tải danh sách học sinh cho lớp ${classId}: `, error); // DEBUG LOG
+        console.error(`Lỗi tải danh sách học sinh cho lớp ${classId}: `, error);
         displayError(studentError, `Lỗi tải học sinh: ${error.message}`);
         studentListUl.innerHTML = '<li class="loading-placeholder">Có lỗi xảy ra khi tải danh sách học sinh.</li>';
-        attendanceListUl.innerHTML = '<li class="loading-placeholder">Lỗi tải danh sách học sinh, không thể điểm danh.</li>'; // Cập nhật list điểm danh
+        attendanceListUl.innerHTML = '<li class="loading-placeholder">Lỗi tải danh sách học sinh, không thể điểm danh.</li>';
     });
-     console.log(`Bắt đầu lắng nghe danh sách học sinh cho lớp ${classId}.`);
+     // console.log(`Bắt đầu lắng nghe danh sách học sinh cho lớp ${classId}.`); // Có thể bỏ log này
 }
 
 function createStudentListItem(studentId, studentName) {
@@ -617,7 +601,6 @@ addStudentForm.addEventListener('submit', (e) => {
     .then(() => {
         console.log(`Đã thêm học sinh "${studentName}" vào lớp ${currentClassId}`);
         studentNameInput.value = '';
-        // Không cần load lại attendance ở đây vì onSnapshot của loadStudents sẽ làm
     })
     .catch(error => {
         console.error("Lỗi thêm học sinh: ", error);
@@ -627,163 +610,114 @@ addStudentForm.addEventListener('submit', (e) => {
 
 // --- QUẢN LÝ ĐIỂM DANH (MỚI) ---
 
-/**
- * Khởi tạo phần điểm danh: đặt ngày mặc định và thêm event listener.
- */
 function initializeAttendance() {
-    console.log("[DEBUG] Khởi tạo điểm danh"); // DEBUG LOG
-    attendanceDateInput.value = getCurrentDateString(); // Đặt ngày hiện tại làm mặc định
-    // Xóa event listener cũ nếu có để tránh bị gọi nhiều lần
+    attendanceDateInput.value = getCurrentDateString();
     attendanceDateInput.removeEventListener('change', handleDateChange);
-    // Thêm event listener mới
     attendanceDateInput.addEventListener('change', handleDateChange);
-    // Tải điểm danh cho ngày mặc định (sẽ được gọi trong loadStudents)
 }
 
-/**
- * Xử lý sự kiện khi ngày điểm danh thay đổi.
- */
 function handleDateChange() {
     if (!currentClassId) return;
     const selectedDate = attendanceDateInput.value;
     if (selectedDate) {
-        console.log("[DEBUG] Ngày điểm danh thay đổi:", selectedDate); // DEBUG LOG
         attendanceListUl.innerHTML = '<li class="loading-placeholder">Đang tải điểm danh...</li>';
-         // Cần lấy lại danh sách học sinh hiện tại để truyền vào loadAttendance
          db.collection('users').doc(currentUser.uid)
            .collection('classes').doc(currentClassId)
            .collection('students')
            .orderBy('name', 'asc').get()
            .then(snapshot => {
                const students = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
-               console.log("[DEBUG] Lấy lại học sinh khi đổi ngày:", students.length, "học sinh"); // DEBUG LOG
                loadAttendance(currentClassId, selectedDate, students);
            })
            .catch(error => {
-               console.error("Lỗi lấy lại danh sách học sinh khi đổi ngày:", error); // DEBUG LOG
+               console.error("Lỗi lấy lại danh sách học sinh khi đổi ngày:", error);
                displayError(attendanceError, `Lỗi tải lại học sinh: ${error.message}`);
                attendanceListUl.innerHTML = '<li class="loading-placeholder">Lỗi tải danh sách học sinh.</li>';
            });
-
     }
 }
 
-/**
- * Tải và hiển thị danh sách điểm danh cho một ngày cụ thể.
- * @param {string} classId ID của lớp học
- * @param {string} dateString Ngày điểm danh (YYYY-MM-DD)
- * @param {Array<{id: string, name: string}>} students Danh sách học sinh của lớp
- */
 async function loadAttendance(classId, dateString, students) {
     if (!currentUser || !classId || !dateString || !students) {
-         console.warn("[DEBUG] Thiếu thông tin để tải điểm danh:", { classId, dateString, students }); // DEBUG LOG
          attendanceListUl.innerHTML = '<li class="loading-placeholder">Thiếu thông tin để tải điểm danh.</li>';
          return;
     }
-    console.log(`[DEBUG] Bắt đầu loadAttendance cho lớp ${classId}, ngày ${dateString}`); // DEBUG LOG
-    attendanceListUl.innerHTML = ''; // Xóa danh sách cũ
-    clearErrors(); // Xóa lỗi cũ
+    attendanceListUl.innerHTML = '';
+    clearErrors();
 
-    // Lấy dữ liệu điểm danh cho ngày này
     const attendanceDocRef = db.collection('users').doc(currentUser.uid)
                                .collection('classes').doc(classId)
                                .collection('attendance').doc(dateString);
 
     try {
         const attendanceDoc = await attendanceDocRef.get();
-        console.log(`[DEBUG] Attendance doc exists for ${dateString}?`, attendanceDoc.exists); // DEBUG LOG
         const attendanceData = attendanceDoc.exists ? attendanceDoc.data() : { absentStudents: {} };
         const absentStudentsMap = attendanceData.absentStudents || {};
-        console.log(`[DEBUG] Absent students map for ${dateString}:`, absentStudentsMap); // DEBUG LOG
 
         if (students.length === 0) {
             attendanceListUl.innerHTML = '<li class="loading-placeholder">Chưa có học sinh trong lớp để điểm danh.</li>';
             return;
         }
-        console.log(`[DEBUG] Rendering attendance for ${students.length} students`); // DEBUG LOG
 
-        // Hiển thị danh sách học sinh với trạng thái điểm danh
         students.forEach(student => {
             const isAbsent = absentStudentsMap[student.id] === true;
-            // console.log(`[DEBUG] Student: ${student.name}, ID: ${student.id}, isAbsent: ${isAbsent}`); // DEBUG LOG (có thể quá nhiều)
             const li = createAttendanceListItem(student.id, student.name, isAbsent, dateString);
-            attendanceListUl.appendChild(li); // Append the created li
+            attendanceListUl.appendChild(li);
         });
-         console.log("[DEBUG] Đã hiển thị xong danh sách điểm danh."); // DEBUG LOG
+        // console.log("Đã hiển thị xong danh sách điểm danh."); // Có thể bỏ log này
 
     } catch (error) {
-        console.error(`Lỗi tải điểm danh ngày ${dateString}: `, error); // DEBUG LOG
+        console.error(`Lỗi tải điểm danh ngày ${dateString}: `, error);
         displayError(attendanceError, `Lỗi tải điểm danh: ${error.message}`);
         attendanceListUl.innerHTML = '<li class="loading-placeholder">Có lỗi xảy ra khi tải điểm danh.</li>';
     }
 }
 
-/**
- * Tạo một phần tử list item (li) cho danh sách điểm danh.
- * @param {string} studentId ID học sinh
- * @param {string} studentName Tên học sinh
- * @param {boolean} isAbsent Trạng thái vắng mặt
- * @param {string} dateString Ngày điểm danh (YYYY-MM-DD)
- * @returns {HTMLLIElement} Phần tử li đã được tạo
- */
 function createAttendanceListItem(studentId, studentName, isAbsent, dateString) {
     const li = document.createElement('li');
     li.dataset.id = studentId;
     li.textContent = studentName;
-    li.classList.toggle('absent', isAbsent); // Thêm class 'absent' nếu vắng
+    li.classList.toggle('absent', isAbsent);
 
     li.addEventListener('click', () => {
-        toggleAttendance(studentId, isAbsent, dateString); // Gọi hàm xử lý khi click
+        toggleAttendance(studentId, isAbsent, dateString);
     });
 
     return li;
 }
 
-/**
- * Thay đổi trạng thái điểm danh (vắng/có mặt) cho học sinh.
- * @param {string} studentId ID học sinh
- * @param {boolean} wasAbsent Trạng thái vắng mặt hiện tại
- * @param {string} dateString Ngày điểm danh (YYYY-MM-DD)
- */
 async function toggleAttendance(studentId, wasAbsent, dateString) {
     if (!currentUser || !currentClassId || !studentId || !dateString) return;
 
-    console.log(`[DEBUG] Toggle attendance for HS ${studentId} on ${dateString}. Was absent: ${wasAbsent}`); // DEBUG LOG
     const attendanceDocRef = db.collection('users').doc(currentUser.uid)
                                .collection('classes').doc(currentClassId)
                                .collection('attendance').doc(dateString);
 
-    const studentKey = `absentStudents.${studentId}`; // Key để cập nhật trong map
+    const studentKey = `absentStudents.${studentId}`;
 
     try {
         if (wasAbsent) {
-            // Nếu đang vắng -> chuyển thành có mặt (xóa khỏi map)
             await attendanceDocRef.update({
-                [studentKey]: firebase.firestore.FieldValue.delete() // Xóa field trong map
+                [studentKey]: firebase.firestore.FieldValue.delete()
             });
-            console.log(`[DEBUG] Đã điểm danh CÓ MẶT cho HS ${studentId} ngày ${dateString}`);
+            console.log(`Đã điểm danh CÓ MẶT cho HS ${studentId} ngày ${dateString}`);
         } else {
-            // Nếu đang có mặt -> chuyển thành vắng (thêm vào map)
-            // Sử dụng set với merge:true để tạo document nếu chưa có, hoặc cập nhật nếu đã có
             await attendanceDocRef.set({
                 absentStudents: {
-                    [studentId]: true // Đánh dấu là vắng
+                    [studentId]: true
                 }
-            }, { merge: true }); // Merge để không ghi đè các học sinh vắng khác
-            console.log(`[DEBUG] Đã điểm danh VẮNG MẶT cho HS ${studentId} ngày ${dateString}`);
+            }, { merge: true });
+            console.log(`Đã điểm danh VẮNG MẶT cho HS ${studentId} ngày ${dateString}`);
         }
-        // Tải lại giao diện điểm danh để cập nhật trạng thái
-         // Cần lấy lại danh sách học sinh hiện tại
          const studentsSnapshot = await db.collection('users').doc(currentUser.uid)
                                          .collection('classes').doc(currentClassId)
                                          .collection('students')
                                          .orderBy('name', 'asc').get();
          const students = studentsSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
-         console.log("[DEBUG] Gọi lại loadAttendance sau khi toggle."); // DEBUG LOG
          loadAttendance(currentClassId, dateString, students);
 
     } catch (error) {
-        console.error(`Lỗi cập nhật điểm danh cho HS ${studentId} ngày ${dateString}: `, error); // DEBUG LOG
+        console.error(`Lỗi cập nhật điểm danh cho HS ${studentId} ngày ${dateString}: `, error);
         displayError(attendanceError, `Lỗi cập nhật điểm danh: ${error.message}`);
         alert("Có lỗi xảy ra khi cập nhật điểm danh, vui lòng thử lại.");
     }
@@ -793,16 +727,13 @@ async function toggleAttendance(studentId, wasAbsent, dateString) {
 // --- XỬ LÝ NÚT QUAY LẠI ---
 backToDashboardButton.addEventListener('click', () => {
     if (unsubscribeStudents) unsubscribeStudents();
-    // Không cần unsubscribe attendance vì không dùng listener real-time
-    // if (unsubscribeAttendance) unsubscribeAttendance();
     unsubscribeStudents = null;
-    // unsubscribeAttendance = null;
     currentClassId = null;
     studentListUl.innerHTML = '';
-    attendanceListUl.innerHTML = ''; // Xóa list điểm danh khi quay lại
+    attendanceListUl.innerHTML = '';
     clearErrors();
     showView('dashboard-view');
 });
 
 // --- KHỞI CHẠY BAN ĐẦU ---
-console.log("Ứng dụng đã sẵn sàng.");
+console.log("Ứng dụng đã sẵn sàng."); // Giữ log này
