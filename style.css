@@ -137,6 +137,16 @@ input[type="password"]:focus {
     background-color: #c82333;
 }
 
+/* Thêm kiểu cho nút sửa */
+.btn-warning {
+    background-color: #ffc107; /* Màu vàng */
+    color: #212529; /* Màu chữ tối */
+}
+
+.btn-warning:hover {
+    background-color: #e0a800;
+}
+
 
 .btn-sm {
     padding: 5px 10px; /* Giảm padding cho nút nhỏ */
@@ -222,14 +232,23 @@ input[type="password"]:focus {
     justify-content: space-between; /* Đẩy tên và nút ra hai bên */
     align-items: center; /* Căn giữa theo chiều dọc */
     transition: background-color 0.2s ease;
+    min-height: 40px; /* Đảm bảo chiều cao tối thiểu ổn định khi sửa inline */
 }
 
-.item-list li .item-name { /* Thêm class cho tên để dễ quản lý */
+.item-list li .item-content { /* Container cho tên hoặc form sửa */
+    flex-grow: 1; /* Chiếm không gian */
+    margin-right: 10px; /* Khoảng cách với nút */
+    display: flex; /* Dùng flex để chứa tên hoặc form sửa */
+    align-items: center;
+}
+
+
+.item-list li .item-name { /* Kiểu cho tên hiển thị bình thường */
     flex-grow: 1; /* Cho phép tên chiếm không gian */
-    margin-right: 10px; /* Khoảng cách với nút bên phải */
     overflow: hidden; /* Ẩn phần tên quá dài */
     text-overflow: ellipsis; /* Hiển thị dấu ... nếu tên quá dài */
     white-space: nowrap; /* Ngăn tên xuống dòng */
+    display: inline-block; /* Để hoạt động đúng với flex */
 }
 
 .item-list li.class-item .item-name { /* Thêm class riêng cho item lớp để có thể click */
@@ -243,8 +262,34 @@ input[type="password"]:focus {
 .item-list li .actions { /* Container cho các nút hành động */
     flex-shrink: 0; /* Ngăn container nút bị co lại */
     display: flex;
-    gap: 5px; /* Khoảng cách giữa các nút (nếu có nhiều nút sau này) */
+    gap: 5px; /* Khoảng cách giữa các nút */
 }
+
+.item-list li .edit-form { /* Kiểu cho form sửa inline */
+    display: none; /* Ẩn ban đầu */
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.item-list li .edit-form input[type="text"] {
+    flex-grow: 1;
+    padding: 5px 8px; /* Giảm padding cho input inline */
+    font-size: 0.95rem; /* Giảm cỡ chữ chút */
+    margin-bottom: 0; /* Bỏ margin dưới */
+}
+
+.item-list li.editing .item-content .item-name {
+    display: none; /* Ẩn tên khi đang sửa */
+}
+.item-list li.editing .item-content .edit-form {
+    display: flex; /* Hiện form sửa khi đang sửa */
+}
+.item-list li.editing .actions {
+    display: none; /* Ẩn nút Sửa/Xóa khi đang sửa */
+}
+
 
 
 .loading-placeholder {
@@ -300,4 +345,17 @@ hr {
         /* Có thể cho phép xuống dòng tên trên mobile nếu cần */
         /* white-space: normal; */
     }
+
+    .item-list li .edit-form {
+        flex-direction: column; /* Chuyển form sửa thành cột */
+        align-items: stretch;
+    }
+    .item-list li .edit-form input[type="text"] {
+         margin-bottom: 5px; /* Thêm khoảng cách dưới cho input */
+    }
+     .item-list li .edit-form .btn {
+         width: 100%; /* Nút chiếm hết chiều rộng */
+         margin-left: 0; /* Bỏ margin trái */
+         margin-right: 0;
+     }
 }
