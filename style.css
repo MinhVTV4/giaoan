@@ -192,12 +192,19 @@ input[type="date"]:focus { /* Thêm input date */
      flex-shrink: 0; /* Ngăn nút bị co lại */
 }
 
-/* Thông báo lỗi */
+/* Thông báo lỗi và thông tin */
 .error-message {
     color: #dc3545; /* Màu đỏ */
     font-size: 0.9em;
     margin-top: 5px;
     min-height: 1.2em; /* Đảm bảo có không gian ngay cả khi không có lỗi */
+}
+.info-message { /* Kiểu cho dòng thông tin */
+    color: #17a2b8; /* Màu xanh lam */
+    font-size: 0.9em;
+    margin-top: -5px; /* Kéo lên gần hơn */
+    margin-bottom: 10px;
+    min-height: 1.2em;
 }
 
 /* Header của các view */
@@ -235,7 +242,7 @@ input[type="date"]:focus { /* Thêm input date */
     display: flex; /* Sử dụng flexbox để căn chỉnh tên và nút */
     justify-content: space-between; /* Đẩy tên và nút ra hai bên */
     align-items: center; /* Căn giữa theo chiều dọc */
-    transition: background-color 0.2s ease, border-color 0.2s ease; /* Thêm transition cho border */
+    transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease; /* Thêm opacity */
     min-height: 40px; /* Đảm bảo chiều cao tối thiểu ổn định khi sửa inline */
 }
 
@@ -330,10 +337,15 @@ hr {
     max-width: 200px; /* Giới hạn chiều rộng tối đa */
 }
 
+.attendance-controls button { /* Kiểu cho nút lọc */
+     flex-shrink: 0; /* Không co lại */
+     margin-left: auto; /* Đẩy nút sang phải nếu đủ chỗ */
+}
+
 .attendance-list li {
     cursor: pointer; /* Cho phép click để điểm danh */
     /* Hiệu ứng chuyển đổi mượt mà hơn */
-    transition: background-color 0.2s ease, border-left 0.2s ease, opacity 0.2s ease;
+    transition: background-color 0.2s ease, border-left 0.2s ease, opacity 0.2s ease, display 0.3s ease; /* Thêm display */
     border-left: 5px solid transparent; /* Viền trái để chỉ trạng thái */
 }
 
@@ -350,6 +362,11 @@ hr {
 
 .attendance-list li.absent:hover {
     background-color: #f1c6cb; /* Đậm hơn khi hover */
+}
+
+/* Kiểu để ẩn học sinh khi lọc (MỚI) */
+.attendance-list.filtering-absent li:not(.absent) {
+    display: none;
 }
 
 
@@ -413,5 +430,10 @@ hr {
      }
      .attendance-controls input[type="date"] {
          max-width: none; /* Bỏ giới hạn max-width trên mobile */
+         margin-bottom: 10px; /* Thêm khoảng cách dưới */
+     }
+     .attendance-controls button {
+         margin-left: 0; /* Bỏ margin trái tự động */
+         width: 100%; /* Nút chiếm hết chiều rộng */
      }
 }
