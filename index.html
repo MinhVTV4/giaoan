@@ -29,7 +29,8 @@
             display: flex;
             flex: 1;
             padding: 1.5rem;
-            gap: 1.5rem;
+            gap: 1.5rem; /* Giữ khoảng cách giữa các panel */
+            min-height: 0; /* Cho phép flex item co lại nếu cần */
         }
 
         .panel {
@@ -42,20 +43,23 @@
         }
 
         .instruments-tray {
-            flex: 0 0 250px; /* Chiều rộng cố định */
+            flex: 0 0 250px; /* Chiều rộng cố định cho khay dụng cụ */
+            min-width: 200px; /* Đảm bảo không quá hẹp */
         }
 
         .experiment-area {
-            flex: 1; /* Chiếm phần lớn không gian */
+            flex: 3; /* Thay đổi flex-grow để chiếm nhiều không gian hơn */
             border: 2px dashed #a0d8a0;
             border-radius: 12px;
             position: relative; /* Quan trọng cho Konva Stage */
             background-color: #fcfdfc;
             overflow: hidden; /* Ensure Konva content stays within bounds */
+            min-width: 300px; /* Đặt chiều rộng tối thiểu cho vùng thí nghiệm */
         }
 
         .control-panel {
-            flex: 0 0 350px; /* Chiều rộng cố định */
+            flex: 0 0 350px; /* Chiều rộng cố định cho bảng điều khiển */
+            min-width: 300px; /* Đảm bảo không quá hẹp */
         }
 
         h2 {
@@ -173,10 +177,37 @@
             border: 1px solid #ddd;
             border-radius: 5px;
         }
+
+        /* MEDIA QUERIES cho thiết bị di động */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column; /* Chuyển sang bố cục cột trên màn hình nhỏ */
+                padding: 1rem;
+                gap: 1rem;
+            }
+
+            .instruments-tray, .control-panel, .experiment-area {
+                flex: none; /* Bỏ flex grow/shrink */
+                width: 100%; /* Chiếm toàn bộ chiều rộng */
+                min-width: unset; /* Xóa min-width để cho phép co lại */
+                margin-bottom: 1rem; /* Thêm khoảng cách giữa các phần */
+            }
+
+            .instruments-tray {
+                order: 1; /* Hiển thị khay dụng cụ đầu tiên */
+            }
+            .experiment-area {
+                order: 2; /* Vùng thí nghiệm thứ hai */
+                height: 300px; /* Đặt chiều cao cố định để nó không bị ẩn đi */
+            }
+            .control-panel {
+                order: 3; /* Bảng điều khiển cuối cùng */
+            }
+        }
     </style>
 </head>
 <body>
-    <header>Phòng thí nghiệm mô phỏng AI</header>
+    <header>Phòng thí nghiệm mô phỏng Firebase AI</header>
 
     <div class="container">
         <div class="instruments-tray panel">
@@ -287,7 +318,6 @@
                     type: e.target.dataset.instrument ? 'instrument' : 'chemical',
                     chemical: e.target.dataset.chemical,
                     instrument: e.target.dataset.instrument,
-                    // Không cần lưu image nữa vì chúng ta sẽ vẽ hình dạng đơn giản với Konva
                 };
                 // Set data cho event dataTransfer (cần cho sự kiện drop)
                 e.dataTransfer.setData('text/plain', JSON.stringify(draggedHtmlElementData));
@@ -364,7 +394,7 @@
             layer.add(testTubeGroup);
             layer.draw();
 
-            // Kích hoạt lại sự kiện kéo thả hóa chất VÀO ống nghiệm Konva
+            // Kích hoạt sự kiện kéo thả hóa chất VÀO ống nghiệm Konva
             testTubeGroup.on('dragover', function(e) {
                 e.preventDefault();
                 e.evt.dataTransfer.dropEffect = 'copy'; // Kéo hóa chất từ khay vào ống nghiệm
@@ -386,13 +416,14 @@
                     const group = e.currentTarget; // Ống nghiệm mà hóa chất được thả vào
                     let contents = group.getAttr('contents');
                     contents.push(chemicalName);
-                    group.setAttr('contents', contents);
+                    group.setAttr('contents', contents); // Cập nhật thuộc tính contents của group
 
                     currentTestTubeInstance = group; // Đặt ống nghiệm này là ống nghiệm đang hoạt động
-                    updateTestTubeContent(group, contents);
+
+                    updateTestTubeContent(group, contents); // Cập nhật màu và chiều cao
 
                     if (contents.length >= 2) {
-                        await checkReaction(contents);
+                        await checkReaction(contents); // Kiểm tra phản ứng
                     }
                 }
             });
@@ -404,10 +435,12 @@
             const totalHeight = testTubeGroup.height();
             const fillHeight = (chemicals.length / 3) * totalHeight; // Giả sử tối đa 3 chất để đầy
 
+            const newColor = getMixtureColor(chemicals);
+
             contentRect.to({
                 height: fillHeight,
                 y: totalHeight - fillHeight,
-                fill: getMixtureColor(chemicals),
+                fill: newColor, // Đặt màu mới
                 duration: 0.5,
                 easing: Konva.Easings.EaseOut,
                 onFinish: () => {
@@ -418,12 +451,26 @@
 
         function getMixtureColor(chemicals) {
             const sorted = [...chemicals].sort();
-            if (sorted.includes('HCl') && sorted.includes('NaOH')) return '#00C853'; // Màu xanh lá cho trung hòa
-            if (sorted.includes('HCl')) return '#FF9800'; // Màu cam cho axit
-            if (sorted.includes('NaOH')) return '#2196F3'; // Màu xanh dương cho bazơ
-            if (sorted.includes('H2O')) return '#B0BEC5'; // Màu xám nhạt cho nước
-            return 'transparent';
+            // Ưu tiên phản ứng trung hòa
+            if (sorted.includes('HCl') && sorted.includes('NaOH')) {
+                // Kiểm tra nếu có cả 2 chất sau đó thay đổi màu
+                if (chemicals.includes('HCl') && chemicals.includes('NaOH')) {
+                    // Sau khi phản ứng, nó có thể là nước + muối, nên màu xanh lá là hợp lý
+                    return '#00C853'; // Màu xanh lá cho trung hòa
+                }
+            }
+            // Nếu chỉ có một loại chất, hiển thị màu của chất đó
+            if (chemicals.length === 1) {
+                if (chemicals.includes('HCl')) return '#FF9800'; // Màu cam cho axit
+                if (chemicals.includes('NaOH')) return '#2196F3'; // Màu xanh dương cho bazơ
+                if (chemicals.includes('H2O')) return '#B0BEC5'; // Màu xám nhạt cho nước
+            }
+            // Nếu có nhiều chất nhưng chưa phản ứng định nghĩa, hoặc phản ứng chưa xảy ra
+            // Đây là phần cần cải thiện với logic phản ứng phức tạp hơn
+            // Hiện tại, nếu có nhiều hơn 1 chất nhưng không phải HCl+NaOH, sẽ mặc định là trong suốt hoặc màu nhạt
+            return '#E0E0E0'; // Màu xám nhạt cho hỗn hợp chưa phản ứng
         }
+
 
         // --- Logic phản ứng và gọi AI (giả lập) ---
         async function checkReaction(chemicals) {
@@ -510,6 +557,7 @@
 
                 }, 2000); // Giả lập độ trễ AI
             } else {
+                // Xử lý các trường hợp hóa chất khác (hoặc chưa đủ để phản ứng)
                 aiFeedbackDiv.innerHTML = `<p>Hiện tại, tôi chưa thể mô phỏng phản ứng của ${chemicals.join(' và ')}. Hãy thử Axit Clohiđric và Natri Hiđroxit nhé!</p>`;
             }
         }
