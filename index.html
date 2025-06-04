@@ -1,637 +1,107 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phòng thí nghiệm mô phỏng Firebase AI</title>
+    <title>Firebase AI Logic MVP - Gemini Developer API (1.5 Flash)</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-            margin: 0;
-            background-color: #f0f2f5;
-            color: #333;
-        }
-
-        header {
-            background-image: linear-gradient(to right, #4CAF50, #8bc34a);
-            color: white;
-            padding: 1rem;
-            text-align: center;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            font-size: 1.5em;
-            font-weight: bold;
-        }
-
-        .container {
-            display: flex;
-            flex: 1;
-            padding: 1.5rem;
-            gap: 1.5rem; /* Giữ khoảng cách giữa các panel */
-            min-height: 0; /* Cho phép flex item co lại nếu cần */
-        }
-
-        .panel {
-            background-color: white;
-            border-radius: 12px;
-            box-shadow: 0 6px 12px rgba(0,0,0,0.08);
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .instruments-tray {
-            flex: 0 0 250px; /* Chiều rộng cố định cho khay dụng cụ */
-            min-width: 200px; /* Đảm bảo không quá hẹp */
-        }
-
-        .experiment-area {
-            flex: 3; /* Thay đổi flex-grow để chiếm nhiều không gian hơn */
-            border: 2px dashed #a0d8a0;
-            border-radius: 12px;
-            position: relative; /* Quan trọng cho Konva Stage */
-            background-color: #fcfdfc;
-            overflow: hidden; /* Ensure Konva content stays within bounds */
-            min-width: 300px; /* Đặt chiều rộng tối thiểu cho vùng thí nghiệm */
-        }
-
-        .control-panel {
-            flex: 0 0 350px; /* Chiều rộng cố định cho bảng điều khiển */
-            min-width: 300px; /* Đảm bảo không quá hẹp */
-        }
-
-        h2 {
-            color: #2e7d32;
-            margin-top: 0;
-            border-bottom: 2px solid #e8f5e9;
-            padding-bottom: 0.75rem;
-            margin-bottom: 1.25rem;
-            font-size: 1.3em;
-        }
-
-        .chemical-item, .instrument-item {
-            display: flex;
-            align-items: center;
-            background-color: #e8f5e9;
-            border: 1px solid #c8e6c9;
-            padding: 0.75rem 1rem;
-            margin-bottom: 0.75rem;
-            border-radius: 8px;
-            cursor: grab;
-            transition: all 0.2s ease-in-out;
-            font-weight: 600;
-            user-select: none; /* Ngăn chặn chọn văn bản khi kéo */
-        }
-
-        .chemical-item:hover, .instrument-item:hover {
-            background-color: #dcedc8;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-        }
-
-        .chemical-item:active, .instrument-item:active {
-            cursor: grabbing;
-            transform: translateY(0);
-        }
-
-        .chemical-icon {
-            width: 24px;
-            height: 24px;
-            margin-right: 10px;
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-        }
-
-        /* Icons for chemicals/instruments (simplified for this example) */
-        #hcl-icon { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23FF5722"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>'); }
-        #naoh-icon { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%232196F3"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15H9v-6h2v6zm4-8h-2V7h2v2z"/></svg>'); }
-        #water-icon { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2303A9F4"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.34 0-4.25-1.91-4.25-4.25V7.75c0-1.24.96-2.25 2.14-2.25H12c1.24 0 2.25.96 2.25 2.14V11.5c0 2.34-1.91 4.25-4.25 4.25z"/></svg>'); }
-        #test-tube-icon { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23795548"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM7 7h10v2H7V7zm0 4h10v2H7v-2zm0 4h10v2H7v-2z"/></svg>'); }
-
-
-        #ai-feedback {
-            background-color: #e3f2fd;
-            border: 1px solid #bbdefb;
-            padding: 1rem;
-            border-radius: 8px;
-            margin-top: auto; /* Đẩy xuống dưới */
-            max-height: 40%; /* Giới hạn chiều cao */
-            overflow-y: auto; /* Cuộn nếu nội dung dài */
-            color: #1a237e;
-        }
-
-        #ai-feedback p {
-            margin: 0 0 0.5rem 0;
-            line-height: 1.4;
-        }
-        #ai-feedback strong {
-            color: #0d47a1;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 1rem;
-        }
-
-        button {
-            padding: 0.75rem 1.25rem;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1em;
-            font-weight: 600;
-            transition: background-color 0.2s ease, transform 0.1s ease;
-        }
-
-        button#reset-button {
-            background-color: #f44336;
-            color: white;
-        }
-        button#reset-button:hover {
-            background-color: #d32f2f;
-            transform: translateY(-1px);
-        }
-
-        button#login-button, button#logout-button {
-            background-color: #2196F3;
-            color: white;
-        }
-        button#login-button:hover, button#logout-button:hover {
-            background-color: #1976D2;
-            transform: translateY(-1px);
-        }
-
-        .auth-section {
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px dashed #eee;
-        }
-        .auth-section input {
-            width: calc(100% - 20px);
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-
-        /* MEDIA QUERIES cho thiết bị di động */
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column; /* Chuyển sang bố cục cột trên màn hình nhỏ */
-                padding: 1rem;
-                gap: 1rem;
-            }
-
-            .instruments-tray, .control-panel, .experiment-area {
-                flex: none; /* Bỏ flex grow/shrink */
-                width: 100%; /* Chiếm toàn bộ chiều rộng */
-                min-width: unset; /* Xóa min-width để cho phép co lại */
-                margin-bottom: 1rem; /* Thêm khoảng cách giữa các phần */
-            }
-
-            .instruments-tray {
-                order: 1; /* Hiển thị khay dụng cụ đầu tiên */
-            }
-            .experiment-area {
-                order: 2; /* Vùng thí nghiệm thứ hai */
-                height: 300px; /* Đặt chiều cao cố định để nó không bị ẩn đi */
-            }
-            .control-panel {
-                order: 3; /* Bảng điều khiển cuối cùng */
-            }
-        }
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        h1, h2 { color: #0056b3; }
+        #controls { margin-bottom: 20px; }
+        #promptInput { width: 70%; padding: 10px; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        #responseContainer { margin-top: 20px; padding: 15px; border: 1px solid #ddd; background-color: #fff; border-radius: 4px; min-height: 100px; white-space: pre-wrap; } /* pre-wrap để giữ định dạng xuống dòng */
+        .error { color: red; font-weight: bold; }
     </style>
 </head>
 <body>
-    <header>Phòng thí nghiệm mô phỏng Firebase AI</header>
+    <h1>Thử nghiệm Firebase AI Logic với Gemini Developer API (Model: gemini-1.5-flash-latest)</h1>
 
-    <div class="container">
-        <div class="instruments-tray panel">
-            <h2>Dụng cụ & Hóa chất</h2>
-            <div class="chemical-item" id="hcl-draggable" data-chemical="HCl" draggable="true">
-                <span class="chemical-icon" id="hcl-icon"></span> Axit Clohiđric (HCl)
-            </div>
-            <div class="chemical-item" id="naoh-draggable" data-chemical="NaOH" draggable="true">
-                <span class="chemical-icon" id="naoh-icon"></span> Natri Hiđroxit (NaOH)
-            </div>
-            <div class="chemical-item" id="water-draggable" data-chemical="H2O" draggable="true">
-                <span class="chemical-icon" id="water-icon"></span> Nước (H₂O)
-            </div>
-            <div class="instrument-item" id="test-tube-draggable" data-instrument="test_tube" draggable="true">
-                <span class="chemical-icon" id="test-tube-icon"></span> Ống nghiệm
-            </div>
-            </div>
-
-        <div class="experiment-area panel" id="konva-container">
-            </div>
-
-        <div class="control-panel panel">
-            <div class="auth-section">
-                <h2>Tài khoản</h2>
-                <input type="email" id="email-input" placeholder="Email">
-                <input type="password" id="password-input" placeholder="Mật khẩu">
-                <button id="login-button">Đăng nhập / Đăng ký</button>
-                <button id="logout-button" style="display: none;">Đăng xuất</button>
-                <p id="auth-status" style="font-size: 0.9em; color: #555; margin-top: 10px;"></p>
-            </div>
-
-            <h2>Kết quả & Gợi ý AI</h2>
-            <div id="ai-feedback">
-                <p>Kết quả thí nghiệm và gợi ý từ AI sẽ hiển thị tại đây.</p>
-            </div>
-            <div class="action-buttons">
-                <button id="reset-button">Đặt lại thí nghiệm</button>
-            </div>
-        </div>
+    <div id="controls">
+        <textarea id="promptInput" rows="3" placeholder="Nhập lời nhắc của bạn ở đây... ví dụ: Kể một câu chuyện ngắn về một con rồng thân thiện."></textarea>
+        <button id="sendPromptButton">Gửi yêu cầu tới Gemini</button>
     </div>
+    
+    <h2>Phản hồi từ Gemini:</h2>
+    <div id="responseContainer">Chưa có phản hồi...</div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-    <script src="https://unpkg.com/konva@9.3.6/konva.min.js"></script>
+    <script type="module">
+      // 1. Import các hàm cần thiết từ Firebase SDKs
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+      // **QUAN TRỌNG VỀ IMPORT MODULE 'firebase/ai' QUA CDN:**
+      // Nếu dòng import dưới đây gây lỗi "fetch-error" hoặc các lỗi liên quan đến module,
+      // bạn RẤT NÊN chuyển sang sử dụng npm và một bundler (như Vite).
+      import { getAI, getGenerativeModel, GoogleAIBackend } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-ai.js";
 
-    <script>
-        // Cấu hình Firebase - **THAY THẾ VỚI THÔNG TIN DỰ ÁN CỦA BẠN**
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
-        };
+      // 2. Cấu hình Firebase của bạn
+      const firebaseConfig = {
+        apiKey: "AIzaSyAnWoc5pBabK2OfFeCau61X1PioBR5gBD8", // **QUAN TRỌNG: Hãy thay thế bằng API key thực của bạn từ Firebase Console.**
+        authDomain: "ailab-9ef87.firebaseapp.com",
+        projectId: "ailab-9ef87",
+        storageBucket: "ailab-9ef87.appspot.com", // Kiểm tra lại tên bucket này trong Firebase Console
+        messagingSenderId: "558122624068",
+        appId: "1:558122624068:web:bde003000c6568f5e74811"
+      };
 
-        // Khởi tạo Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+      // 3. Khởi tạo Firebase App
+      const app = initializeApp(firebaseConfig);
+      console.log("Firebase App initialized!");
+      document.getElementById("responseContainer").innerHTML = "Firebase App đã khởi tạo.<br>Đang chờ khởi tạo AI Model...";
 
-        // --- Biến toàn cục Konva.js ---
-        let stage;
-        let layer;
-        let testTubeCounter = 0;
-        let currentTestTubeInstance = null; // Ống nghiệm đang hoạt động
-
-        // --- Các phần tử DOM ---
-        const instrumentsTray = document.querySelector('.instruments-tray');
-        const experimentArea = document.getElementById('konva-container');
-        const aiFeedbackDiv = document.getElementById('ai-feedback');
-        const resetButton = document.getElementById('reset-button');
-        const emailInput = document.getElementById('email-input');
-        const passwordInput = document.getElementById('password-input');
-        const loginButton = document.getElementById('login-button');
-        const logoutButton = document.getElementById('logout-button');
-        const authStatus = document.getElementById('auth-status');
-
-        // --- Konva.js setup ---
-        function initKonva() {
-            stage = new Konva.Stage({
-                container: 'konva-container',
-                width: experimentArea.offsetWidth,
-                height: experimentArea.offsetHeight,
-            });
-            layer = new Konva.Layer();
-            stage.add(layer);
-
-            // Resize Konva stage khi cửa sổ thay đổi kích thước
-            window.addEventListener('resize', () => {
-                stage.width(experimentArea.offsetWidth);
-                stage.height(experimentArea.offsetHeight);
-                layer.draw(); // Vẽ lại layer sau khi resize
-            });
+      // 4. Khởi tạo dịch vụ Gemini Developer API và tạo một thực thể mô hình Gemini.
+      let model;
+      try {
+        const ai = getAI(app, { backend: new GoogleAIBackend() });
+        
+        // *** THAY ĐỔI MODEL NAME Ở ĐÂY ***
+        model = getGenerativeModel(ai, { model: "gemini-1.5-flash-latest" }); 
+        
+        console.log("Generative Model instance created with model 'gemini-1.5-flash-latest'!");
+        document.getElementById("responseContainer").innerHTML += "<br>Generative Model instance đã tạo với model 'gemini-1.5-flash-latest'!";
+      } catch (e) {
+        console.error("Lỗi khi khởi tạo AI Model:", e);
+        document.getElementById("responseContainer").innerHTML = `<span class="error">Lỗi khởi tạo AI Model: ${e.message}.<br>Hãy kiểm tra Console (F12) để biết chi tiết.<br>Đảm bảo module 'firebase/ai.js' được tải đúng và Gemini API đã được kích hoạt trong Firebase project của bạn cho model này.</span>`;
+      }
+      
+      // 5. Hàm gửi yêu cầu và hiển thị phản hồi
+      async function callGeminiAPI() {
+        if (!model) {
+          document.getElementById("responseContainer").innerText = "Mô hình AI chưa được khởi tạo. Hãy kiểm tra lỗi ở Console (F12).";
+          return;
         }
 
-        // --- Drag & Drop từ khay dụng cụ vào Konva Stage ---
-        // Biến để lưu trữ thông tin của phần tử HTML đang được kéo
-        let draggedHtmlElementData = null;
-
-        instrumentsTray.addEventListener('dragstart', (e) => {
-            // Kiểm tra xem phần tử được kéo có phải là hóa chất hay dụng cụ không
-            if (e.target.classList.contains('chemical-item') || e.target.classList.contains('instrument-item')) {
-                // Lưu trữ dữ liệu cần thiết của phần tử đang được kéo
-                draggedHtmlElementData = {
-                    id: e.target.id,
-                    type: e.target.dataset.instrument ? 'instrument' : 'chemical',
-                    chemical: e.target.dataset.chemical,
-                    instrument: e.target.dataset.instrument,
-                };
-                // Set data cho event dataTransfer (cần cho sự kiện drop)
-                e.dataTransfer.setData('text/plain', JSON.stringify(draggedHtmlElementData));
-                e.dataTransfer.effectAllowed = 'copy';
-            }
-        });
-
-        experimentArea.addEventListener('dragover', (e) => {
-            e.preventDefault(); // Cho phép thả
-            e.dataTransfer.dropEffect = 'copy';
-        });
-
-        experimentArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            const data = e.dataTransfer.getData('text/plain');
-            try {
-                draggedHtmlElementData = JSON.parse(data); // Phân tích lại dữ liệu
-            } catch (error) {
-                console.error("Invalid drag data:", error);
-                draggedHtmlElementData = null;
-                return;
-            }
-
-            // Lấy vị trí chuột trên Konva Stage
-            const pointerPosition = stage.getPointerPosition();
-
-            // Chỉ tạo ống nghiệm khi kéo từ khay dụng cụ
-            if (draggedHtmlElementData && draggedHtmlElementData.type === 'instrument' && draggedHtmlElementData.instrument === 'test_tube') {
-                addTestTubeToStage(pointerPosition.x, pointerPosition.y);
-            }
-            draggedHtmlElementData = null; // Reset
-        });
-
-        // --- Thêm ống nghiệm vào Stage ---
-        function addTestTubeToStage(x, y) {
-            testTubeCounter++;
-            const testTubeName = `testTube_${testTubeCounter}`;
-            const testTubeGroup = new Konva.Group({
-                x: x - 40, // Căn giữa
-                y: y - 100, // Căn giữa
-                width: 80,
-                height: 200,
-                draggable: true,
-                name: testTubeName,
-                id: testTubeName,
-                contents: [], // Mảng lưu trữ hóa chất trong ống nghiệm
-            });
-
-            // Thân ống nghiệm
-            const testTubeRect = new Konva.Rect({
-                x: 0,
-                y: 0,
-                width: 80,
-                height: 200,
-                fill: '#f0f0f0',
-                stroke: '#333',
-                strokeWidth: 2,
-                cornerRadius: [0, 0, 40, 40], // Mô phỏng đáy ống nghiệm
-            });
-
-            // Phần nội dung (chất lỏng) trong ống nghiệm
-            const testTubeContent = new Konva.Rect({
-                x: 0,
-                y: testTubeRect.height(), // Ban đầu rỗng, nội dung từ dưới lên
-                width: testTubeRect.width(),
-                height: 0,
-                fill: 'transparent',
-                name: 'content',
-                cornerRadius: [0, 0, 40, 40],
-            });
-
-            testTubeGroup.add(testTubeRect);
-            testTubeGroup.add(testTubeContent);
-            layer.add(testTubeGroup);
-            layer.draw();
-
-            // Kích hoạt sự kiện kéo thả hóa chất VÀO ống nghiệm Konva
-            testTubeGroup.on('dragover', function(e) {
-                e.preventDefault();
-                e.evt.dataTransfer.dropEffect = 'copy'; // Kéo hóa chất từ khay vào ống nghiệm
-            });
-
-            testTubeGroup.on('drop', async function(e) {
-                e.preventDefault();
-                const data = e.evt.dataTransfer.getData('text/plain'); // Lấy dữ liệu từ phần tử HTML bị kéo
-                let droppedData;
-                try {
-                    droppedData = JSON.parse(data);
-                } catch (error) {
-                    console.error("Invalid dropped data:", error);
-                    return;
-                }
-
-                if (droppedData && droppedData.type === 'chemical') {
-                    const chemicalName = droppedData.chemical;
-                    const group = e.currentTarget; // Ống nghiệm mà hóa chất được thả vào
-                    let contents = group.getAttr('contents');
-                    contents.push(chemicalName);
-                    group.setAttr('contents', contents); // Cập nhật thuộc tính contents của group
-
-                    currentTestTubeInstance = group; // Đặt ống nghiệm này là ống nghiệm đang hoạt động
-
-                    updateTestTubeContent(group, contents); // Cập nhật màu và chiều cao
-
-                    if (contents.length >= 2) {
-                        await checkReaction(contents); // Kiểm tra phản ứng
-                    }
-                }
-            });
+        const promptText = document.getElementById("promptInput").value;
+        if (!promptText.trim()) {
+            alert("Vui lòng nhập lời nhắc!");
+            return;
         }
 
-        // --- Cập nhật nội dung ống nghiệm Konva ---
-        function updateTestTubeContent(testTubeGroup, chemicals) {
-            const contentRect = testTubeGroup.findOne('.content');
-            const totalHeight = testTubeGroup.height();
-            const fillHeight = (chemicals.length / 3) * totalHeight; // Giả sử tối đa 3 chất để đầy
+        document.getElementById("responseContainer").innerText = "Đang gửi yêu cầu đến Gemini...";
+        console.log("Sending prompt:", promptText);
 
-            const newColor = getMixtureColor(chemicals);
-
-            contentRect.to({
-                height: fillHeight,
-                y: totalHeight - fillHeight,
-                fill: newColor, // Đặt màu mới
-                duration: 0.5,
-                easing: Konva.Easings.EaseOut,
-                onFinish: () => {
-                    layer.draw();
-                }
-            });
+        try {
+          const result = await model.generateContent(promptText);
+          const response = await result.response;
+          const text = response.text();
+          
+          document.getElementById("responseContainer").innerText = text;
+          console.log("Response text:", text);
+        } catch (error) {
+          console.error("Lỗi khi gọi Gemini API:", error);
+          // Lỗi "fetch-error" bạn gặp trước đó thường rơi vào đây.
+          document.getElementById("responseContainer").innerHTML = `<span class="error">Lỗi khi gọi Gemini API: ${error.message} (code: ${error.code}).<br>Kiểm tra Console (F12) và tab Network để biết thêm chi tiết.<br>Nguyên nhân có thể do: cấu hình Firebase/API key, model name không đúng/không khả dụng, vấn đề mạng, hoặc hạn chế của việc dùng SDK qua CDN.</span>`;
         }
+      }
 
-        function getMixtureColor(chemicals) {
-            const sorted = [...chemicals].sort();
-            // Ưu tiên phản ứng trung hòa
-            if (sorted.includes('HCl') && sorted.includes('NaOH')) {
-                // Kiểm tra nếu có cả 2 chất sau đó thay đổi màu
-                if (chemicals.includes('HCl') && chemicals.includes('NaOH')) {
-                    // Sau khi phản ứng, nó có thể là nước + muối, nên màu xanh lá là hợp lý
-                    return '#00C853'; // Màu xanh lá cho trung hòa
-                }
-            }
-            // Nếu chỉ có một loại chất, hiển thị màu của chất đó
-            if (chemicals.length === 1) {
-                if (chemicals.includes('HCl')) return '#FF9800'; // Màu cam cho axit
-                if (chemicals.includes('NaOH')) return '#2196F3'; // Màu xanh dương cho bazơ
-                if (chemicals.includes('H2O')) return '#B0BEC5'; // Màu xám nhạt cho nước
-            }
-            // Nếu có nhiều chất nhưng chưa phản ứng định nghĩa, hoặc phản ứng chưa xảy ra
-            // Đây là phần cần cải thiện với logic phản ứng phức tạp hơn
-            // Hiện tại, nếu có nhiều hơn 1 chất nhưng không phải HCl+NaOH, sẽ mặc định là trong suốt hoặc màu nhạt
-            return '#E0E0E0'; // Màu xám nhạt cho hỗn hợp chưa phản ứng
-        }
+      // 6. Gán sự kiện cho nút bấm
+      const sendButton = document.getElementById("sendPromptButton");
+      if (sendButton) {
+          sendButton.addEventListener("click", callGeminiAPI);
+      } else {
+          console.error("Không tìm thấy nút 'sendPromptButton'.");
+      }
 
-
-        // --- Logic phản ứng và gọi AI (giả lập) ---
-        async function checkReaction(chemicals) {
-            const sortedChemicals = [...chemicals].sort();
-
-            if (sortedChemicals.includes('HCl') && sortedChemicals.includes('NaOH')) {
-                aiFeedbackDiv.innerHTML = '<p>Đang phân tích phản ứng...</p>';
-
-                // Tạo hiệu ứng tỏa nhiệt (ví dụ: một hình tròn phát sáng)
-                const heatEffect = new Konva.Circle({
-                    x: currentTestTubeInstance.x() + currentTestTubeInstance.width() / 2,
-                    y: currentTestTubeInstance.y() + currentTestTubeInstance.height() - 20,
-                    radius: 20,
-                    fill: 'orange',
-                    opacity: 0.7,
-                    listening: false, // Không tương tác
-                });
-                layer.add(heatEffect);
-                heatEffect.moveToBottom(); // Đặt dưới ống nghiệm
-                layer.draw();
-
-                // Animation tỏa nhiệt
-                heatEffect.to({
-                    scaleX: 1.5,
-                    scaleY: 1.5,
-                    opacity: 0,
-                    duration: 1.5,
-                    onFinish: () => {
-                        heatEffect.destroy();
-                        layer.draw();
-                    }
-                });
-
-                // --- Firebase AI Logic Integration (giả lập) ---
-                // Trong thực tế, bạn sẽ dùng Firebase Functions để gọi API AI Logic (Gemini API)
-                /*
-                const callAiFunction = firebase.functions().httpsCallable('explainReaction');
-                try {
-                    const result = await callAiFunction({ chemicals: sortedChemicals, actions: ["mix"], context: "school-level chemistry" });
-                    const aiResponse = result.data.explanation;
-                    const aiSuggestion = result.data.suggestion;
-                    aiFeedbackDiv.innerHTML = `<p>${aiResponse}</p><p><strong>Gợi ý:</strong> ${aiSuggestion}</p>`;
-
-                    // Lưu kết quả vào Firestore
-                    await db.collection("experiments").add({
-                        userId: auth.currentUser ? auth.currentUser.uid : "anonymous",
-                        chemicals: sortedChemicals,
-                        result: "Phản ứng trung hòa",
-                        aiFeedback: aiResponse,
-                        aiSuggestion: aiSuggestion,
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-
-                } catch (error) {
-                    console.error("Lỗi khi gọi AI Function:", error);
-                    aiFeedbackDiv.innerHTML = `<p>Đã xảy ra lỗi khi phân tích phản ứng. Vui lòng thử lại.</p>`;
-                }
-                */
-
-                // Giả lập phản hồi AI cho bản MVP
-                setTimeout(async () => {
-                    const simulatedExplanation = "Bạn vừa thực hiện phản ứng trung hòa giữa Axit Clohiđric (HCl) và Natri Hiđroxit (NaOH). Phản ứng này tạo ra muối Natri Clorua (NaCl) và nước (H₂O), đồng thời giải phóng nhiệt (phản ứng tỏa nhiệt).";
-                    const simulatedSuggestion = "Hãy thử thay NaOH bằng một bazơ khác như Amoniac (NH₃) và xem điều gì xảy ra nhé!";
-                    aiFeedbackDiv.innerHTML = `<p>${simulatedExplanation}</p><p><strong>Gợi ý:</strong> ${simulatedSuggestion}</p>`;
-
-                    // Lưu kết quả vào Firestore (với dữ liệu giả lập)
-                    if (auth.currentUser) {
-                         try {
-                            await db.collection("experiments").add({
-                                userId: auth.currentUser.uid,
-                                chemicals: sortedChemicals,
-                                result: "Phản ứng trung hòa",
-                                aiFeedback: simulatedExplanation,
-                                aiSuggestion: simulatedSuggestion,
-                                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                            });
-                            console.log("Dữ liệu thí nghiệm đã được lưu vào Firestore.");
-                        } catch (error) {
-                            console.error("Lỗi khi lưu dữ liệu thí nghiệm:", error);
-                        }
-                    } else {
-                        console.warn("Người dùng chưa đăng nhập, không lưu thí nghiệm vào Firestore.");
-                    }
-
-                }, 2000); // Giả lập độ trễ AI
-            } else {
-                // Xử lý các trường hợp hóa chất khác (hoặc chưa đủ để phản ứng)
-                aiFeedbackDiv.innerHTML = `<p>Hiện tại, tôi chưa thể mô phỏng phản ứng của ${chemicals.join(' và ')}. Hãy thử Axit Clohiđric và Natri Hiđroxit nhé!</p>`;
-            }
-        }
-
-        // --- Firebase Authentication ---
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                authStatus.textContent = `Đã đăng nhập: ${user.email}`;
-                loginButton.style.display = 'none';
-                logoutButton.style.display = 'inline-block';
-                emailInput.style.display = 'none';
-                passwordInput.style.display = 'none';
-            } else {
-                authStatus.textContent = 'Bạn chưa đăng nhập.';
-                loginButton.style.display = 'inline-block';
-                logoutButton.style.display = 'none';
-                emailInput.style.display = 'inline-block';
-                passwordInput.style.display = 'inline-block';
-            }
-        });
-
-        loginButton.addEventListener('click', async () => {
-            const email = emailInput.value;
-            const password = passwordInput.value;
-            if (!email || !password) {
-                authStatus.textContent = 'Vui lòng nhập email và mật khẩu.';
-                return;
-            }
-            try {
-                // Thử đăng nhập, nếu không có tài khoản thì đăng ký
-                await auth.signInWithEmailAndPassword(email, password);
-                authStatus.textContent = 'Đăng nhập thành công!';
-            } catch (error) {
-                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-                     try {
-                        await auth.createUserWithEmailAndPassword(email, password);
-                        authStatus.textContent = 'Đăng ký thành công và đã đăng nhập!';
-                    } catch (regError) {
-                        authStatus.textContent = `Lỗi đăng ký: ${regError.message}`;
-                        console.error("Registration error:", regError);
-                    }
-                } else {
-                    authStatus.textContent = `Lỗi đăng nhập: ${error.message}`;
-                    console.error("Login error:", error);
-                }
-            }
-        });
-
-        logoutButton.addEventListener('click', async () => {
-            try {
-                await auth.signOut();
-                authStatus.textContent = 'Đã đăng xuất.';
-            } catch (error) {
-                authStatus.textContent = `Lỗi đăng xuất: ${error.message}`;
-                console.error("Logout error:", error);
-            }
-        });
-
-        // --- Các nút hành động ---
-        resetButton.addEventListener('click', () => {
-            layer.destroyChildren(); // Xóa tất cả các đối tượng trên layer
-            layer = new Konva.Layer(); // Tạo layer mới
-            stage.add(layer);
-            layer.draw();
-            aiFeedbackDiv.innerHTML = '<p>Kết quả thí nghiệm và gợi ý từ AI sẽ hiển thị tại đây.</p>';
-            testTubeCounter = 0;
-            currentTestTubeInstance = null;
-        });
-
-        // --- Khởi tạo khi DOM sẵn sàng ---
-        document.addEventListener('DOMContentLoaded', () => {
-            initKonva();
-        });
     </script>
 </body>
 </html>
-
