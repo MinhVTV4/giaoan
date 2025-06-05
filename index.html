@@ -185,6 +185,14 @@
         const cancelSaveChemical = document.getElementById('cancelSaveChemical');
         const confirmSaveChemicalButtonAction = document.getElementById('confirmSaveChemicalButtonAction');
 
+        const infoPanel = document.getElementById('info-panel');
+        const infoPanelOverlay = document.getElementById('info-panel-overlay');
+        const infoPanelTitle = document.getElementById('info-panel-title');
+        const infoPanelDescription = document.getElementById('info-panel-description');
+        const infoPanelCloseButton = document.getElementById('info-panel-close-button');
+        const infoPanelCloseX = document.getElementById('info-panel-close-x');
+
+
         function showToast(message) {
             const toast = document.getElementById('customToast');
             if (toast) {
@@ -199,9 +207,8 @@
             }
         }
 
-        // Định nghĩa lại hàm callGeminiAPI đã bị thiếu
         async function callGeminiAPI(promptText) {
-            const responseContainer = document.getElementById("responseContainer"); // Container trong lab
+            const responseContainer = document.getElementById("responseContainer"); 
             
             if (!promptText || !promptText.trim()) {
                 if (typeof showToast === 'function') {
@@ -242,6 +249,38 @@
                 }
             }
         }
+
+        // --- Hiển thị Bảng Thông Tin Hóa Chất (Dùng chung) ---
+        function displayChemicalInfoInPanel(chemicalData) {
+            if (chemicalData && infoPanel && infoPanelTitle && infoPanelDescription && infoPanelOverlay) {
+                infoPanelTitle.textContent = chemicalData.name || "Thông tin Hóa chất";
+                infoPanelDescription.textContent = chemicalData.description || "Không có mô tả chi tiết.";
+                infoPanel.classList.remove('hidden');
+                infoPanelOverlay.classList.remove('hidden');
+                setTimeout(() => {
+                    infoPanel.style.opacity = '1';
+                    infoPanel.style.transform = 'translate(-50%, -50%) scale(1)';
+                    infoPanelOverlay.style.opacity = '1';
+                }, 10);
+            } else {
+                console.warn("Could not display info panel. Data or panel elements missing.");
+            }
+        }
+
+        function hideInfoPanel() {
+            if (infoPanel && infoPanelOverlay) {
+                infoPanel.style.opacity = '0';
+                infoPanel.style.transform = 'translate(-50%, -50%) scale(0.95)';
+                infoPanelOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    infoPanel.classList.add('hidden');
+                    infoPanelOverlay.classList.add('hidden');
+                }, 300); 
+            }
+        }
+        if (infoPanelCloseButton) infoPanelCloseButton.addEventListener('click', hideInfoPanel);
+        if (infoPanelCloseX) infoPanelCloseX.addEventListener('click', hideInfoPanel);
+        if (infoPanelOverlay) infoPanelOverlay.addEventListener('click', hideInfoPanel);
 
 
         showRegisterLink.addEventListener('click', (e) => {
@@ -505,7 +544,7 @@ Hãy đảm bảo output CHỈ LÀ JSON object đó, không có bất kỳ văn 
                     chemicalElement.appendChild(deleteButton);
                     chemicalElement.addEventListener('click', () => {
                         console.log("Clicked on saved chemical:", chemicalData);
-                        showToast(`Đã chọn: ${chemicalData.name}. Kéo vào cốc để thí nghiệm (chức năng sắp có).`);
+                        // Thay vì showToast, sẽ gọi hàm tạo đối tượng Konva
                         addKonvaChemicalFromData(chemicalData, chemicalId);
                     });
                     userChemicalsContainer.appendChild(chemicalElement);
@@ -617,8 +656,8 @@ Hãy đảm bảo output CHỈ LÀ JSON object đó, không có bất kỳ văn 
         }
         
         function updateKonvaSolutionVisualState() {
-            if (!konvaSolution || !konvaBeaker) {
-                console.warn("[updateKonvaSolutionVisualState] Konva solution or beaker not initialized.");
+            if (!konvaSolution || !konvaBeaker || !konvaStage) { // Thêm kiểm tra konvaStage
+                console.warn("[updateKonvaSolutionVisualState] Konva elements not fully initialized.");
                 return;
             }
             console.log("[updateKonvaSolutionVisualState] Konva chemicals:", konvaChemicalsInBeaker.length);
@@ -671,9 +710,21 @@ Hãy đảm bảo output CHỈ LÀ JSON object đó, không có bất kỳ văn 
             group.add(text);
             konvaLayer.add(group);
             group.moveToTop(); 
+
             group.on('dragstart', function() {
                 this.moveToTop(); this.scale({x: 1.1, y: 1.1}); konvaLayer.batchDraw();
             });
+
+            // THÊM SỰ KIỆN CLICK CHO KONVA GROUP
+            group.on('click tap', function(evt) {
+                if (this.isDragging() || (this.getStage() && this.getStage().isDragging && this.getStage().isDragging())) { 
+                    return; // Không hiển thị panel nếu đang kéo
+                }
+                const data = this.attrs.chemicalData;
+                console.log("[Konva Chemical Click] Displaying info for:", data.name);
+                displayChemicalInfoInPanel(data); // Gọi hàm hiển thị panel
+            });
+
             group.on('dragend', function() {
                 this.scale({x: 1, y: 1});
                 const droppedChemicalData = this.attrs.chemicalData; 
