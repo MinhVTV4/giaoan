@@ -118,7 +118,7 @@
         // Import các hàm từ Firebase SDK
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
         import { 
-            getAuth, // Giữ lại import cho getAuth
+            getAuth, 
             createUserWithEmailAndPassword, 
             signInWithEmailAndPassword, 
             signOut, 
@@ -127,7 +127,7 @@
             browserLocalPersistence 
         } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
         import { 
-            getFirestore, // Giữ lại import cho getFirestore
+            getFirestore, 
             doc, 
             setDoc, 
             getDoc, 
@@ -141,19 +141,16 @@
             deleteDoc
         } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
 
-        // Khối khởi tạo Firebase mới từ người dùng
         const firebaseConfig = {
             apiKey: "AIzaSyAnWoc5pBabK2OfFeCau61X1PioBR5gBD8",
             authDomain: "ailab-9ef87.firebaseapp.com",
             projectId: "ailab-9ef87",
-            storageBucket: "ailab-9ef87.firebasestorage.app", // Lưu ý: firebasestorage.app
+            storageBucket: "ailab-9ef87.firebasestorage.app", 
             messagingSenderId: "558122624068",
             appId: "1:558122624068:web:bde003000c6568f5e74811"
         };
         const app = initializeApp(firebaseConfig);
-        // Kết thúc khối khởi tạo Firebase mới
-
-        // Tiếp tục khởi tạo Auth và Firestore sau khi app được khởi tạo
+        
         const auth = getAuth(app);
         const db = getFirestore(app);
         console.log("Firebase App, Auth, and Firestore initialized with new config!");
@@ -201,6 +198,51 @@
                 alert(message);
             }
         }
+
+        // Định nghĩa lại hàm callGeminiAPI đã bị thiếu
+        async function callGeminiAPI(promptText) {
+            const responseContainer = document.getElementById("responseContainer"); // Container trong lab
+            
+            if (!promptText || !promptText.trim()) {
+                if (typeof showToast === 'function') {
+                    showToast("Vui lòng nhập lời nhắc cho Gemini.");
+                } else {
+                    alert("Vui lòng nhập lời nhắc cho Gemini.");
+                }
+                return;
+            }
+
+            if (responseContainer) {
+                responseContainer.textContent = "Đang gửi yêu cầu đến Gemini...";
+            }
+            console.log("Calling generic Gemini API with prompt:", promptText);
+
+            try {
+                const payload = { contents: [{ role: "user", parts: [{ text: promptText }] }] };
+                const response = await fetch(GEMINI_API_URL_FLASH, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+
+                if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts[0].text) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    if (responseContainer) {
+                        responseContainer.innerHTML = `<strong>Phản hồi từ AI:</strong><br>${text}`;
+                    }
+                    console.log("Response text from generic Gemini API:", text);
+                } else {
+                    throw new Error("AI không trả về phản hồi hợp lệ cho prompt.");
+                }
+            } catch (error) {
+                console.error("Lỗi khi gọi Gemini API (chung):", error);
+                if (responseContainer) {
+                    responseContainer.innerHTML = `<span class="text-red-600 font-bold">Lỗi Gemini: ${error.message}.</span>`;
+                }
+            }
+        }
+
 
         showRegisterLink.addEventListener('click', (e) => {
             e.preventDefault();
@@ -790,7 +832,7 @@ Output chỉ là JSON object.
         
         document.getElementById('sendPromptButtonLab').addEventListener('click', () => {
             const promptText = document.getElementById('promptInput').value;
-            callGeminiAPI(promptText); 
+            callGeminiAPI(promptText); // SỬA Ở ĐÂY: Gọi hàm đã được định nghĩa lại
         });
 
 
