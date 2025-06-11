@@ -119,7 +119,7 @@
         <header class="flex justify-between items-center mb-3 pb-3 border-b border-gray-200">
             <div class="text-left">
                  <h1 class="text-xl sm:text-2xl font-bold text-gray-800">Trình Phiên Dịch Chat</h1>
-                 <p class="text-xs sm:text-sm text-gray-500">Nhấn & Giữ Micro để nói</p>
+                 <p id="mic-instruction" class="text-xs sm:text-sm text-gray-500">Nhấn & Giữ Micro để nói</p>
             </div>
             <!-- Header buttons -->
             <div class="flex items-center space-x-2">
@@ -164,12 +164,27 @@
             <div id="settingsPanel" class="absolute top-0 right-0 w-full max-w-sm h-full bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 ease-in-out z-20 overflow-y-auto">
                  <button id="closeSettingsBtn" class="absolute top-3 right-4 text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
                  <h3 class="text-lg font-semibold text-gray-700 mb-6 text-center">Cài đặt</h3>
-                 <div class="flex items-center justify-between">
-                     <label for="autoSpeakToggle" class="text-gray-700">Tự động đọc bản dịch</label>
-                     <label class="switch">
-                         <input type="checkbox" id="autoSpeakToggle">
-                         <span class="slider"></span>
-                     </label>
+                 <div class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <label for="autoSpeakToggle" class="text-gray-700">Tự động đọc bản dịch</label>
+                        <label class="switch">
+                            <input type="checkbox" id="autoSpeakToggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div>
+                        <label class="text-gray-700 font-medium">Chế độ ghi âm</label>
+                        <div class="mt-2 space-y-2">
+                            <div class="flex items-center">
+                                <input id="mode-hold" type="radio" name="recordingMode" value="hold" class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300">
+                                <label for="mode-hold" class="ml-3 block text-sm text-gray-700">Nhấn và Giữ</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input id="mode-toggle" type="radio" name="recordingMode" value="toggle" class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300">
+                                <label for="mode-toggle" class="ml-3 block text-sm text-gray-700">Nhấn để Bật/Tắt (Tự động ngắt)</label>
+                            </div>
+                        </div>
+                    </div>
                  </div>
             </div>
 
@@ -237,6 +252,7 @@
 
         // DOM Elements
         const micButton = document.getElementById('micButton');
+        const micInstruction = document.getElementById('mic-instruction');
         const conversationView = document.getElementById('conversationView');
         const messageBox = document.getElementById('messageBox');
         const sourceLangSelect = document.getElementById('sourceLangSelect');
@@ -249,6 +265,7 @@
         const settingsPanel = document.getElementById('settingsPanel');
         const closeSettingsBtn = document.getElementById('closeSettingsBtn');
         const autoSpeakToggle = document.getElementById('autoSpeakToggle');
+        const recordingModeRadios = document.querySelectorAll('input[name="recordingMode"]');
 
         // Auth Panel Elements
         const authToggleBtn = document.getElementById('authToggleBtn');
@@ -303,7 +320,14 @@
         let isRecording = false;
         let finalTranscript = '';
         let unsubscribeHistory = null;
-        let isAutoSpeakEnabled = false;
+        let silenceTimer = null;
+        const SILENCE_TIMEOUT = 1500; // 1.5 seconds
+
+        // --- App Settings ---
+        let appSettings = {
+            autoSpeak: false,
+            recordingMode: 'hold' // 'hold' or 'toggle'
+        };
         
         const languageMap = {
             "en-US": { name: "English", ttsName: "en-US", geminiName: "English" },
@@ -362,9 +386,20 @@
                 finalTranscript = '';
                 micButton.classList.add('recording');
                 micButton.querySelector('i').className = 'fas fa-stop text-2xl';
+                clearTimeout(silenceTimer); // Clear any lingering timers
             };
             
             recognition.onresult = (event) => {
+                // In toggle mode, reset the silence timer on any speech activity
+                if (appSettings.recordingMode === 'toggle') {
+                    clearTimeout(silenceTimer);
+                    silenceTimer = setTimeout(() => {
+                        if (isRecording) {
+                           recognition.stop();
+                        }
+                    }, SILENCE_TIMEOUT);
+                }
+
                 let interimTranscript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
@@ -401,6 +436,7 @@
 
             recognition.onend = () => {
                 isRecording = false;
+                clearTimeout(silenceTimer);
                 micButton.classList.remove('recording');
                 micButton.querySelector('i').className = 'fas fa-microphone-alt text-2xl';
 
@@ -440,7 +476,7 @@
                 translatedText = translatedText.trim();
                 
                 // Auto-speak if enabled
-                if (isAutoSpeakEnabled && translatedText) {
+                if (appSettings.autoSpeak && translatedText) {
                     speakText(translatedText, targetLangSelect.value);
                 }
 
@@ -485,10 +521,34 @@
         }
 
         // --- Event Listeners ---
-        micButton.addEventListener('mousedown', () => { if (!isRecording && !micButton.disabled) recognition.start(); });
-        micButton.addEventListener('mouseup', () => { if (isRecording) recognition.stop(); });
-        micButton.addEventListener('touchstart', (e) => { e.preventDefault(); if (!isRecording && !micButton.disabled) recognition.start(); });
-        micButton.addEventListener('touchend', (e) => { e.preventDefault(); if (isRecording) recognition.stop(); });
+        function handleMicInteractionStart(e) {
+            e.preventDefault();
+            if (micButton.disabled) return;
+
+            if (appSettings.recordingMode === 'hold') {
+                if (!isRecording) recognition.start();
+            } else if (appSettings.recordingMode === 'toggle') {
+                if (isRecording) {
+                    recognition.stop();
+                } else {
+                    recognition.start();
+                }
+            }
+        }
+
+        function handleMicInteractionEnd(e) {
+            e.preventDefault();
+             if (appSettings.recordingMode === 'hold') {
+                if (isRecording) recognition.stop();
+            }
+            // In 'toggle' mode, this event does nothing.
+        }
+
+        micButton.addEventListener('mousedown', handleMicInteractionStart);
+        micButton.addEventListener('mouseup', handleMicInteractionEnd);
+        micButton.addEventListener('touchstart', handleMicInteractionStart, { passive: false });
+        micButton.addEventListener('touchend', handleMicInteractionEnd);
+
 
         swapLangButton.addEventListener('click', () => {
             const currentSource = sourceLangSelect.value;
@@ -531,7 +591,46 @@
             }
         });
 
-        // Panel Toggles
+        // --- Settings Logic ---
+        function saveSettings() {
+            localStorage.setItem('translatorAppSettings', JSON.stringify(appSettings));
+        }
+
+        function loadSettings() {
+            const savedSettings = localStorage.getItem('translatorAppSettings');
+            if (savedSettings) {
+                appSettings = JSON.parse(savedSettings);
+            }
+            // Apply loaded settings to the UI
+            autoSpeakToggle.checked = appSettings.autoSpeak;
+            document.querySelector(`input[name="recordingMode"][value="${appSettings.recordingMode}"]`).checked = true;
+            updateMicInstruction();
+        }
+
+        function updateMicInstruction() {
+            if (appSettings.recordingMode === 'hold') {
+                 micInstruction.textContent = "Nhấn & Giữ Micro để nói";
+            } else {
+                 micInstruction.textContent = "Nhấn Micro để Bật/Tắt";
+            }
+        }
+        
+        autoSpeakToggle.addEventListener('change', (e) => {
+            appSettings.autoSpeak = e.target.checked;
+            saveSettings();
+        });
+
+        recordingModeRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    appSettings.recordingMode = e.target.value;
+                    updateMicInstruction();
+                    saveSettings();
+                }
+            });
+        });
+
+        // --- Panel Toggles Logic ---
         function closeAllPanels() {
             settingsPanel.classList.add('translate-x-full');
             authPanel.classList.add('translate-x-full');
@@ -558,12 +657,7 @@
         closeAuthBtn.addEventListener('click', () => authPanel.classList.add('translate-x-full'));
         closeHistoryBtn.addEventListener('click', () => historyPanel.classList.add('translate-x-full'));
         
-        // Settings Logic
-        autoSpeakToggle.addEventListener('change', (e) => {
-            isAutoSpeakEnabled = e.target.checked;
-        });
-
-        // Auth Logic
+        // --- Auth & History Logic (unchanged) ---
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 authForm.style.display = 'none';
@@ -609,7 +703,6 @@
             } catch (error) { showUIMessage("Lỗi đăng xuất: " + error.message, 5000); }
         });
 
-        // Firestore - Load Translation History
         function loadTranslationHistory(userId) {
             if (unsubscribeHistory) unsubscribeHistory();
             const q = query(collection(db, "translations"), where("userId", "==", userId), orderBy("createdAt", "desc"));
@@ -638,6 +731,7 @@
         }
         
         // --- Initial Load ---
+        loadSettings();
         initializeSpeechRecognition();
         
     </script>
