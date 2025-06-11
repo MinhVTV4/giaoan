@@ -3,917 +3,581 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Lab - Xác thực & Firestore</title>
+    <title>Trình Phiên Dịch Chat AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase Core (luôn cần thiết) -->
-    <script type="module" src="https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js"></script>
-    <!-- Firebase Authentication -->
-    <script type="module" src="https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js"></script>
-    <!-- Firebase Firestore -->
-    <script type="module" src="https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js"></script>
-    <!-- Konva.js (tạm thời chưa dùng nhiều ở bước này) -->
-    <script src="https://unpkg.com/konva@9.3.6/konva.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: sans-serif; overscroll-behavior: none; }
-        #konva-stage-container canvas { max-width: 100%; height: auto !important; }
-        .custom-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #333; color: white; padding: 10px 20px; border-radius: 5px; z-index: 1000; opacity: 0; transition: opacity 0.5s ease-in-out; pointer-events: none; }
-        .custom-toast.show { opacity: 1; }
-        /* Thêm style cho modal (nếu dùng) hoặc form */
-        .auth-form-container { max-width: 400px; margin: 2rem auto; padding: 2rem; background-color: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .lab-hidden { display: none !important; } /* Ẩn phòng thí nghiệm khi chưa đăng nhập */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+        /* Style cho thanh cuộn */
+        #conversationView::-webkit-scrollbar {
+            width: 6px;
+        }
+        #conversationView::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        #conversationView::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 6px;
+        }
+        #conversationView::-webkit-scrollbar-thumb:hover {
+            background: #a5a9af;
+        }
+        
+        .mic-button {
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 14px 0 rgba(0, 118, 255, 0.39);
+        }
+        .mic-button:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px 0 rgba(0, 118, 255, 0.23);
+        }
+        .mic-button.recording {
+            transform: scale(1.1);
+            background-color: #ef4444; /* Red-500 */
+            box-shadow: 0 0 0 10px rgba(239, 68, 68, 0.4);
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+            70% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .bubble {
+            max-width: 75%;
+            padding: 10px 15px;
+            border-radius: 18px;
+            word-wrap: break-word;
+        }
+        .user-bubble {
+            background-color: #2563eb; /* Blue-600 */
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .assistant-bubble {
+            background-color: #e2e8f0; /* Slate-200 */
+            color: #1e293b; /* Slate-800 */
+            border-bottom-left-radius: 4px;
+        }
+        .bubble-actions {
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+        }
+        .bubble:hover .bubble-actions {
+            opacity: 1;
+        }
+
+        .message-box {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(17, 24, 39, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s, transform 0.5s;
+            pointer-events: none;
+        }
+        .message-box.show {
+            opacity: 1;
+            transform: translate(-50%, -10px);
+        }
+        .spinner {
+            display: inline-block;
+            width: 1em;
+            height: 1em;
+            border: 2px solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: spinner-border .75s linear infinite;
+            vertical-align: -0.125em;
+        }
+        @keyframes spinner-border {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body class="flex flex-col items-center justify-center min-h-screen p-2 sm:p-4">
 
-    <!-- Khu vực Xác thực -->
-    <div id="auth-container" class="min-h-screen flex flex-col items-center justify-center p-4">
-        <div class="w-full max-w-md mb-4 p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700">
-            <p class="font-bold">Lưu ý quan trọng:</p>
-            <p>Để sử dụng chức năng đăng nhập/đăng ký bằng Email, bạn cần kích hoạt phương thức "Email/Password" trong Firebase Console -> Authentication -> Sign-in method.</p>
-        </div>
-        <div id="user-status" class="w-full max-w-md mb-4 p-3 bg-white rounded shadow text-center">
-            <p id="user-email-display">Chưa đăng nhập</p>
-            <button id="signOutButton" class="hidden mt-2 bg-red-500 hover:bg-red-600 text-white font-semibold py-1 px-3 rounded text-sm">Đăng xuất</button>
-        </div>
-
-        <div id="login-form-container" class="auth-form-container">
-            <h2 class="text-2xl font-bold text-blue-700 text-center mb-6">Đăng Nhập</h2>
-            <input type="email" id="loginEmail" placeholder="Email" class="w-full p-2 mb-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
-            <input type="password" id="loginPassword" placeholder="Mật khẩu" class="w-full p-2 mb-4 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
-            <button id="loginButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded mb-2">Đăng Nhập</button>
-            <p class="text-center text-sm">Chưa có tài khoản? <a href="#" id="showRegisterLink" class="text-blue-600 hover:underline">Đăng ký ngay</a></p>
-        </div>
-
-        <div id="register-form-container" class="auth-form-container hidden">
-            <h2 class="text-2xl font-bold text-green-700 text-center mb-6">Đăng Ký</h2>
-            <input type="email" id="registerEmail" placeholder="Email" class="w-full p-2 mb-3 border border-gray-300 rounded focus:ring-2 focus:ring-green-500">
-            <input type="password" id="registerPassword" placeholder="Mật khẩu (ít nhất 6 ký tự)" class="w-full p-2 mb-4 border border-gray-300 rounded focus:ring-2 focus:ring-green-500">
-            <button id="registerButton" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded mb-2">Đăng Ký</button>
-            <p class="text-center text-sm">Đã có tài khoản? <a href="#" id="showLoginLink" class="text-green-600 hover:underline">Đăng nhập</a></p>
-        </div>
-    </div>
-
-    <!-- Khu vực Phòng Thí Nghiệm (ban đầu bị ẩn) -->
-    <div id="lab-section" class="lab-hidden p-4 md:p-8">
-        <h1 class="text-2xl md:text-3xl font-bold text-blue-700 text-center mb-6">Phòng Thí Nghiệm Mô Phỏng AI</h1>
-        
-        <div class="mb-6 p-4 bg-white rounded shadow">
-            <h3 class="text-xl font-semibold text-gray-700 mb-3">Tạo Hóa Chất Mới (AI Hỗ Trợ)</h3>
-            <div class="flex gap-2">
-                <input type="text" id="chemicalNameInput" placeholder="Nhập tên hóa chất (ví dụ: Axit Sunfuric)" class="flex-grow p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500">
-                <button id="createChemicalButton" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded">Tạo Hóa Chất</button>
+    <div class="w-full max-w-2xl h-[95vh] flex flex-col bg-white p-3 sm:p-5 rounded-2xl shadow-2xl">
+        <header class="flex justify-between items-center mb-3 pb-3 border-b border-gray-200">
+            <div class="text-left">
+                 <h1 class="text-xl sm:text-2xl font-bold text-gray-800">Trình Phiên Dịch Chat</h1>
+                 <p class="text-xs sm:text-sm text-gray-500">Nhấn & Giữ Micro để nói</p>
             </div>
-            <div id="aiChemicalDefinitionArea" class="mt-4 p-3 border rounded bg-gray-50 min-h-[100px] whitespace-pre-line">
-                Thông tin hóa chất từ AI sẽ hiển thị ở đây...
+            <!-- Auth and History buttons -->
+            <div class="flex items-center space-x-2">
+                 <button id="authToggleBtn" class="p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" title="Tài khoản">
+                     <i class="fas fa-user-circle text-xl text-gray-600"></i>
+                 </button>
+                  <button id="historyToggleBtn" class="p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" title="Lịch sử dịch">
+                     <i class="fas fa-history text-xl text-gray-600"></i>
+                 </button>
             </div>
-             <button id="saveAiChemicalButton" class="hidden mt-3 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-3 rounded">Lưu hóa chất này</button>
-        </div>
-        
-        <div class="mb-6 p-4 bg-white rounded shadow">
-            <h3 class="text-xl font-semibold text-gray-700 mb-3">Hóa Chất Của Bạn</h3>
-            <div id="userChemicalsContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 min-h-[100px] bg-gray-50 p-2 rounded border">
-                <p class="text-gray-500 col-span-full text-center py-4">Chưa có hóa chất nào được lưu.</p>
-            </div>
-        </div>
+        </header>
 
-
-        <div id="lab-container" class="flex flex-col md:flex-row md:justify-around w-full max-w-6xl mx-auto gap-4">
-            <div id="konva-outer-container" class="w-full md:w-2/3 bg-gray-200 border border-gray-300 rounded-lg shadow p-2 flex justify-center items-center touch-none"> 
-                <div id="konva-stage-container"></div>
-            </div>
-
-            <div id="ai-controls-container" class="w-full md:w-1/3 flex flex-col bg-white p-4 border border-gray-300 rounded-lg shadow">
-                <h2 class="text-xl font-semibold text-blue-600 mb-3">Kết quả & Tương tác AI</h2>
-                <h3 class="text-lg font-semibold text-blue-600 mb-2">Phản hồi từ Gemini:</h3>
-                <div id="responseContainer" class="p-3 border border-gray-200 bg-gray-50 rounded-md min-h-[150px] whitespace-pre-wrap flex-grow overflow-y-auto mb-4">
-                    Chưa có phản hồi...
+        <!-- Main Content Area -->
+        <div class="flex-grow flex flex-col overflow-hidden relative">
+            <!-- Conversation View -->
+            <div id="conversationView" class="flex-grow p-4 space-y-4 overflow-y-auto">
+                <!-- Example Bubble -->
+                <div class="flex justify-start">
+                    <div class="bubble assistant-bubble">
+                        <p class="font-medium">Chào bạn!</p>
+                        <p class="text-sm text-gray-600 mt-1">Hãy chọn ngôn ngữ và giữ nút micro để bắt đầu phiên dịch.</p>
+                    </div>
                 </div>
-                <h3 class="text-lg font-semibold text-gray-700 mb-2">Gửi lời nhắc thủ công:</h3>
-                <div id="controls" class="flex flex-col">
-                    <textarea id="promptInput" rows="3" placeholder="Nhập lời nhắc thủ công ở đây..." class="w-full p-2 border border-gray-300 rounded-md mb-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
-                    <button id="sendPromptButtonLab" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded mb-2">Gửi tới Gemini (Thí nghiệm)</button>
+            </div>
+
+            <!-- FIX: Added a dedicated overlay for permission errors -->
+            <div id="permission-overlay" class="absolute inset-0 bg-white/90 backdrop-blur-sm z-30 flex-col items-center justify-center text-center p-6 rounded-lg" style="display: none;">
+                <i class="fas fa-microphone-slash text-5xl text-red-500 mb-4"></i>
+                <h3 class="text-2xl font-bold text-gray-800 mb-2">Cần Quyền Truy Cập Micro</h3>
+                <p class="text-gray-600">
+                    Ứng dụng này cần quyền truy cập vào micro của bạn để có thể nhận dạng giọng nói.
+                    <br>
+                    Vui lòng nhấp vào biểu tượng micro <i class="fas fa-microphone-slash"></i> ở thanh địa chỉ của trình duyệt và chọn "Luôn cho phép".
+                </p>
+                 <p class="text-xs text-gray-500 mt-4">Sau khi cấp quyền, vui lòng tải lại trang.</p>
+            </div>
+
+            <!-- Floating Panels -->
+            <div id="authPanel" class="absolute top-0 right-0 w-full max-w-sm h-full bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 ease-in-out z-20">
+                 <!-- Auth content goes here -->
+                 <button id="closeAuthBtn" class="absolute top-2 right-2 text-gray-500 hover:text-gray-800">&times;</button>
+                 <h3 class="text-lg font-semibold text-gray-700 mb-4 text-center">Tài Khoản</h3>
+                 <div id="authForm" style="display: block;">
+                    <input type="email" id="emailInput" class="w-full px-3 py-2 border rounded-md mb-2" placeholder="Email" autocomplete="email">
+                    <input type="password" id="passwordInput" class="w-full px-3 py-2 border rounded-md mb-2" placeholder="Mật khẩu" autocomplete="current-password">
+                    <div class="flex justify-center space-x-2">
+                        <button id="registerButton" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Đăng Ký</button>
+                        <button id="loginButton" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Đăng Nhập</button>
+                    </div>
                 </div>
-                <button id="resetBeakerButton" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition duration-150 mt-4">Làm sạch cốc</button>
+                <div id="userInfo" style="display: none;" class="text-center">
+                    <p id="userEmail" class="text-sm text-gray-700 mb-3"></p>
+                    <button id="logoutButton" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">Đăng Xuất</button>
+                </div>
+                 <div id="authStatus" class="text-xs text-gray-500 mt-4 text-center">Chưa đăng nhập.</div>
+            </div>
+
+             <div id="historyPanel" class="absolute top-0 right-0 w-full max-w-sm h-full bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 ease-in-out z-20 overflow-y-auto">
+                 <button id="closeHistoryBtn" class="absolute top-2 right-2 text-gray-500 hover:text-gray-800">&times;</button>
+                 <h3 class="text-lg font-semibold text-gray-700 mb-4 text-center">Lịch Sử Dịch</h3>
+                 <div id="translationHistory" class="space-y-3"></div>
+             </div>
+        </div>
+
+        <!-- Controls Area -->
+        <div class="px-4 pt-3 border-t border-gray-200">
+             <div class="flex items-center justify-between mb-3">
+                <div class="language-select text-center">
+                    <select id="sourceLangSelect" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                        <option value="en-US">English</option>
+                        <option value="vi-VN" selected>Tiếng Việt</option>
+                    </select>
+                </div>
+                <button id="swapLangButton" class="p-3 rounded-full hover:bg-gray-200" title="Đảo chiều ngôn ngữ">
+                    <i class="fas fa-exchange-alt text-lg text-gray-600"></i>
+                </button>
+                <div class="language-select text-center">
+                    <select id="targetLangSelect" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                        <option value="vi">Tiếng Việt</option>
+                        <option value="en" selected>English</option>
+                    </select>
+                </div>
+             </div>
+            <div class="text-center my-2">
+                <button id="micButton" class="mic-button w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center">
+                    <i class="fas fa-microphone-alt text-2xl"></i>
+                </button>
             </div>
         </div>
     </div>
-    <div id="customToast" class="custom-toast"></div>
 
-    <div id="confirmSaveModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 md:w-1/3">
-            <h3 class="text-xl font-bold mb-4">Xác nhận Lưu Hóa Chất</h3>
-            <div id="confirmChemicalDetails" class="mb-4 text-sm max-h-60 overflow-y-auto">
-                {/* Chi tiết hóa chất từ AI sẽ được chèn vào đây */}
-            </div>
-            <p class="mb-4">Bạn có muốn lưu hóa chất này vào kho lưu trữ cá nhân không?</p>
-            <div class="flex justify-end gap-3">
-                <button id="cancelSaveChemical" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded">Hủy</button>
-                <button id="confirmSaveChemicalButtonAction" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">Lưu</button>
-            </div>
-        </div>
-    </div>
+    <div id="messageBox" class="message-box"></div>
 
-
+    <!-- Firebase SDK -->
     <script type="module">
-        // Import các hàm từ Firebase SDK
+        // Import Firebase SDKs
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-        import { 
-            getAuth, 
-            createUserWithEmailAndPassword, 
-            signInWithEmailAndPassword, 
-            signOut, 
-            onAuthStateChanged,
-            setPersistence,
-            browserLocalPersistence 
-        } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
-        import { 
-            getFirestore, 
-            doc, 
-            setDoc, 
-            getDoc, 
-            addDoc, 
-            collection, 
-            query, 
-            where, 
-            getDocs,
-            onSnapshot, 
-            serverTimestamp,
-            deleteDoc
-        } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+        import { getAI, getGenerativeModel, GoogleAIBackend } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-ai.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAnWoc5pBabK2OfFeCau61X1PioBR5gBD8",
-            authDomain: "ailab-9ef87.firebaseapp.com",
-            projectId: "ailab-9ef87",
-            storageBucket: "ailab-9ef87.firebasestorage.app", 
-            messagingSenderId: "558122624068",
-            appId: "1:558122624068:web:bde003000c6568f5e74811"
-        };
-        const app = initializeApp(firebaseConfig);
+        // DOM Elements
+        const micButton = document.getElementById('micButton');
+        const conversationView = document.getElementById('conversationView');
+        const messageBox = document.getElementById('messageBox');
+        const sourceLangSelect = document.getElementById('sourceLangSelect');
+        const targetLangSelect = document.getElementById('targetLangSelect');
+        const swapLangButton = document.getElementById('swapLangButton');
+        const permissionOverlay = document.getElementById('permission-overlay');
         
+        // Auth Panel Elements
+        const authToggleBtn = document.getElementById('authToggleBtn');
+        const authPanel = document.getElementById('authPanel');
+        const closeAuthBtn = document.getElementById('closeAuthBtn');
+        const emailInput = document.getElementById('emailInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const registerButton = document.getElementById('registerButton');
+        const loginButton = document.getElementById('loginButton');
+        const logoutButton = document.getElementById('logoutButton');
+        const authForm = document.getElementById('authForm');
+        const userInfo = document.getElementById('userInfo');
+        const userEmailDisplay = document.getElementById('userEmail');
+        const authStatus = document.getElementById('authStatus');
+
+        // History Panel Elements
+        const historyToggleBtn = document.getElementById('historyToggleBtn');
+        const historyPanel = document.getElementById('historyPanel');
+        const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+        const translationHistoryDiv = document.getElementById('translationHistory');
+
+        // Firebase Config - PLEASE REPLACE WITH YOUR CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyDRS3wkou1M7RjCqBdBwTmNkvcCzGANgxA", 
+            authDomain: "cardnew-bfbce.firebaseapp.com",
+            projectId: "cardnew-bfbce",
+            storageBucket: "cardnew-bfbce.firebasestorage.app",
+            messagingSenderId: "110225482882",
+            appId: "1:110225482882:web:c3cdb03d508436ff17c09b"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        console.log("Firebase App, Auth, and Firestore initialized with new config!");
-
-        const GEMINI_API_KEY = ""; 
-        const GEMINI_API_URL_FLASH = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-ai-lab-app';
-        let currentUserId = null; 
-        let currentSelectedAiChemical = null; 
-
-        const loginFormContainer = document.getElementById('login-form-container');
-        const registerFormContainer = document.getElementById('register-form-container');
-        const authContainer = document.getElementById('auth-container');
-        const labSection = document.getElementById('lab-section');
-        const userEmailDisplay = document.getElementById('user-email-display');
-        const signOutButton = document.getElementById('signOutButton');
-        const loginEmailInput = document.getElementById('loginEmail');
-        const loginPasswordInput = document.getElementById('loginPassword');
-        const loginButton = document.getElementById('loginButton');
-        const registerEmailInput = document.getElementById('registerEmail');
-        const registerPasswordInput = document.getElementById('registerPassword');
-        const registerButton = document.getElementById('registerButton');
-        const showRegisterLink = document.getElementById('showRegisterLink');
-        const showLoginLink = document.getElementById('showLoginLink');
-        const chemicalNameInput = document.getElementById('chemicalNameInput');
-        const createChemicalButton = document.getElementById('createChemicalButton');
-        const aiChemicalDefinitionArea = document.getElementById('aiChemicalDefinitionArea');
-        const userChemicalsContainer = document.getElementById('userChemicalsContainer');
-        const confirmSaveModal = document.getElementById('confirmSaveModal');
-        const confirmChemicalDetails = document.getElementById('confirmChemicalDetails');
-        const cancelSaveChemical = document.getElementById('cancelSaveChemical');
-        const confirmSaveChemicalButtonAction = document.getElementById('confirmSaveChemicalButtonAction');
-
-        const infoPanel = document.getElementById('info-panel');
-        const infoPanelOverlay = document.getElementById('info-panel-overlay');
-        const infoPanelTitle = document.getElementById('info-panel-title');
-        const infoPanelDescription = document.getElementById('info-panel-description');
-        const infoPanelCloseButton = document.getElementById('info-panel-close-button');
-        const infoPanelCloseX = document.getElementById('info-panel-close-x');
-
-
-        function showToast(message) {
-            const toast = document.getElementById('customToast');
-            if (toast) {
-                toast.textContent = message;
-                toast.classList.add('show');
-                setTimeout(() => {
-                    toast.classList.remove('show');
-                }, 3000); 
-            } else {
-                console.warn("Custom toast element not found. Message:", message);
-                alert(message);
-            }
+        
+        // Initialize Firebase AI Logic
+        let generativeAIModel;
+        try {
+            const firebaseAIService = getAI(app, { backend: new GoogleAIBackend() });
+            generativeAIModel = getGenerativeModel(firebaseAIService, { model: "gemini-1.5-flash" });
+            console.log("Firebase AI Logic initialized with gemini-1.5-flash model.");
+        } catch (error) {
+            console.error("Lỗi khởi tạo Firebase AI Logic:", error);
+            showUIMessage("Lỗi khởi tạo dịch vụ AI.", 5000);
+            micButton.disabled = true;
+            micButton.classList.add('bg-gray-400', 'cursor-not-allowed');
         }
 
-        async function callGeminiAPI(promptText) {
-            const responseContainer = document.getElementById("responseContainer"); 
+        // --- State Variables ---
+        let recognition;
+        let isRecording = false;
+        let finalTranscript = '';
+        let unsubscribeHistory = null;
+        
+        const languageMap = {
+            "en-US": { name: "English", ttsName: "en-US", geminiName: "English" },
+            "vi-VN": { name: "Tiếng Việt", ttsName: "vi-VN", geminiName: "Vietnamese" },
+            "en": { name: "English", ttsName: "en-US", geminiName: "English" },
+            "vi": { name: "Tiếng Việt", ttsName: "vi-VN", geminiName: "Vietnamese" }
+        };
+
+        // --- UI Functions ---
+        function showUIMessage(message, duration = 3000) {
+            messageBox.textContent = message;
+            messageBox.classList.add('show');
+            setTimeout(() => messageBox.classList.remove('show'), duration);
+        }
+
+        function scrollToBottom() {
+            conversationView.scrollTop = conversationView.scrollHeight;
+        }
+
+        function createBubble(text, isUser, lang) {
+            const bubbleId = `bubble-${Date.now()}`;
+            const bubbleWrapper = document.createElement('div');
+            bubbleWrapper.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
             
-            if (!promptText || !promptText.trim()) {
-                if (typeof showToast === 'function') {
-                    showToast("Vui lòng nhập lời nhắc cho Gemini.");
-                } else {
-                    alert("Vui lòng nhập lời nhắc cho Gemini.");
+            const bubble = document.createElement('div');
+            bubble.id = bubbleId;
+            bubble.className = `bubble ${isUser ? 'user-bubble' : 'assistant-bubble'}`;
+            bubble.innerHTML = `
+                <div class="text-content">${text}</div>
+                <div class="bubble-actions flex items-center justify-end space-x-2 mt-2">
+                    ${!isUser ? `<button class="tts-button p-1 hover:bg-black/10 rounded-full" data-lang="${lang}" title="Nghe lại"><i class="fas fa-volume-up text-xs"></i></button>` : ''}
+                    <button class="copy-button p-1 hover:bg-black/10 rounded-full" title="Sao chép"><i class="fas fa-copy text-xs"></i></button>
+                </div>
+            `;
+            
+            bubbleWrapper.appendChild(bubble);
+            conversationView.appendChild(bubbleWrapper);
+            scrollToBottom();
+            return bubbleId;
+        }
+
+        // --- Core Logic ---
+        function initializeSpeechRecognition() {
+            if (!('webkitSpeechRecognition' in window)) {
+                showUIMessage("Trình duyệt này không hỗ trợ Speech Recognition.", 5000);
+                return;
+            }
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = sourceLangSelect.value;
+            
+            recognition.onstart = () => {
+                permissionOverlay.style.display = 'none'; // Hide overlay on successful start
+                isRecording = true;
+                finalTranscript = '';
+                micButton.classList.add('recording');
+                micButton.querySelector('i').className = 'fas fa-stop text-2xl';
+            };
+            
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
                 }
+            };
+            
+            recognition.onerror = (event) => {
+                console.error("Speech recognition error details:", { error: event.error, message: event.message });
+                let errorMessage;
+                switch (event.error) {
+                    case 'no-speech':
+                    case 'aborted':
+                        console.log(`Speech recognition ended with a benign error: ${event.error}`);
+                        return;
+                    case 'not-allowed':
+                    case 'service-not-allowed':
+                        // FIX: Show a persistent overlay and disable the mic button.
+                        permissionOverlay.style.display = 'flex';
+                        micButton.disabled = true;
+                        micButton.classList.add('bg-gray-400', 'cursor-not-allowed');
+                        return; // Exit to avoid showing a temporary message box.
+                    case 'network':
+                        errorMessage = "Lỗi mạng. Vui lòng kiểm tra kết nối internet.";
+                        break;
+                    default:
+                        errorMessage = `Lỗi nhận dạng giọng nói: ${event.error}. Vui lòng thử lại.`;
+                        break;
+                }
+                showUIMessage(errorMessage, 5000);
+            };
+
+            recognition.onend = () => {
+                isRecording = false;
+                micButton.classList.remove('recording');
+                micButton.querySelector('i').className = 'fas fa-microphone-alt text-2xl';
+
+                const transcript = finalTranscript.trim();
+                if (transcript) {
+                    translateAndDisplay(transcript);
+                }
+            };
+        }
+
+        async function translateAndDisplay(text) {
+            if (!generativeAIModel) {
+                showUIMessage("Dịch vụ AI chưa sẵn sàng.", 4000);
                 return;
             }
 
-            if (responseContainer) {
-                responseContainer.textContent = "Đang gửi yêu cầu đến Gemini...";
-            }
-            console.log("Calling generic Gemini API with prompt:", promptText);
-
+            const userBubbleId = createBubble(text, true, sourceLangSelect.value);
+            const assistantBubbleId = createBubble('<span class="spinner"></span>', false, targetLangSelect.value);
+            const assistantBubble = document.getElementById(assistantBubbleId);
+            const assistantTextContent = assistantBubble.querySelector('.text-content');
+            
             try {
-                const payload = { contents: [{ role: "user", parts: [{ text: promptText }] }] };
-                const response = await fetch(GEMINI_API_URL_FLASH, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const result = await response.json();
+                const sourceLangName = languageMap[sourceLangSelect.value].geminiName;
+                const targetLangName = languageMap[targetLangSelect.value].geminiName;
+                const prompt = `Translate the following ${sourceLangName} text to ${targetLangName}. Provide only the translation, without any additional comments, context, or quotation marks: "${text}"`;
+                
+                const streamResult = await generativeAIModel.generateContentStream(prompt);
 
-                if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts[0].text) {
-                    const text = result.candidates[0].content.parts[0].text;
-                    if (responseContainer) {
-                        responseContainer.innerHTML = `<strong>Phản hồi từ AI:</strong><br>${text}`;
-                    }
-                    console.log("Response text from generic Gemini API:", text);
-                } else {
-                    throw new Error("AI không trả về phản hồi hợp lệ cho prompt.");
+                let translatedText = "";
+                for await (const item of streamResult.stream) {
+                    const chunk = item.text();
+                    translatedText += chunk;
+                    assistantTextContent.textContent = translatedText;
+                    scrollToBottom();
                 }
+
+                translatedText = translatedText.trim();
+                
+                // Auto-save if logged in
+                if (auth.currentUser && text && translatedText) {
+                    saveToHistory(text, translatedText, sourceLangSelect.value, targetLangSelect.value);
+                }
+
             } catch (error) {
-                console.error("Lỗi khi gọi Gemini API (chung):", error);
-                if (responseContainer) {
-                    responseContainer.innerHTML = `<span class="text-red-600 font-bold">Lỗi Gemini: ${error.message}.</span>`;
-                }
+                console.error("Translation error:", error);
+                assistantTextContent.innerHTML = `<span class="text-red-500">Lỗi dịch.</span>`;
+                showUIMessage("Đã có lỗi xảy ra trong quá trình dịch.", 4000);
+            }
+        }
+        
+        async function saveToHistory(original, translated, sourceLang, targetLang) {
+             const user = auth.currentUser;
+             if (!user) return;
+             try {
+                await addDoc(collection(db, "translations"), {
+                    userId: user.uid,
+                    originalText: original,
+                    translatedText: translated,
+                    sourceLang: sourceLang,
+                    targetLang: targetLang,
+                    createdAt: serverTimestamp()
+                });
+                console.log("Translation saved to history.");
+            } catch (e) {
+                console.error("Error saving translation: ", e);
+                showUIMessage("Không thể tự động lưu lịch sử.", 3000);
             }
         }
 
-        // --- Hiển thị Bảng Thông Tin Hóa Chất (Dùng chung) ---
-        function displayChemicalInfoInPanel(chemicalData) {
-            if (chemicalData && infoPanel && infoPanelTitle && infoPanelDescription && infoPanelOverlay) {
-                infoPanelTitle.textContent = chemicalData.name || "Thông tin Hóa chất";
-                infoPanelDescription.textContent = chemicalData.description || "Không có mô tả chi tiết.";
-                infoPanel.classList.remove('hidden');
-                infoPanelOverlay.classList.remove('hidden');
-                setTimeout(() => {
-                    infoPanel.style.opacity = '1';
-                    infoPanel.style.transform = 'translate(-50%, -50%) scale(1)';
-                    infoPanelOverlay.style.opacity = '1';
-                }, 10);
-            } else {
-                console.warn("Could not display info panel. Data or panel elements missing.");
-            }
+        function speakText(text, langCode) {
+            if (!text || !langCode) return;
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = languageMap[langCode]?.ttsName || langCode;
+            speechSynthesis.speak(utterance);
         }
 
-        function hideInfoPanel() {
-            if (infoPanel && infoPanelOverlay) {
-                infoPanel.style.opacity = '0';
-                infoPanel.style.transform = 'translate(-50%, -50%) scale(0.95)';
-                infoPanelOverlay.style.opacity = '0';
-                setTimeout(() => {
-                    infoPanel.classList.add('hidden');
-                    infoPanelOverlay.classList.add('hidden');
-                }, 300); 
-            }
-        }
-        if (infoPanelCloseButton) infoPanelCloseButton.addEventListener('click', hideInfoPanel);
-        if (infoPanelCloseX) infoPanelCloseX.addEventListener('click', hideInfoPanel);
-        if (infoPanelOverlay) infoPanelOverlay.addEventListener('click', hideInfoPanel);
+        // --- Event Listeners ---
+        micButton.addEventListener('mousedown', () => { if (!isRecording && !micButton.disabled) recognition.start(); });
+        micButton.addEventListener('mouseup', () => { if (isRecording) recognition.stop(); });
+        micButton.addEventListener('touchstart', (e) => { e.preventDefault(); if (!isRecording && !micButton.disabled) recognition.start(); });
+        micButton.addEventListener('touchend', (e) => { e.preventDefault(); if (isRecording) recognition.stop(); });
 
-
-        showRegisterLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            loginFormContainer.classList.add('hidden');
-            registerFormContainer.classList.remove('hidden');
+        swapLangButton.addEventListener('click', () => {
+            const sourceVal = sourceLangSelect.value;
+            sourceLangSelect.value = targetLangSelect.options[0].value === 'en' ? 'en-US' : 'vi-VN';
+            targetLangSelect.value = sourceVal === 'en-US' ? 'en' : 'vi';
+            recognition.lang = sourceLangSelect.value;
+            showUIMessage("Đã đảo chiều ngôn ngữ", 2000);
         });
 
-        showLoginLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            registerFormContainer.classList.add('hidden');
-            loginFormContainer.classList.remove('hidden');
+        sourceLangSelect.addEventListener('change', () => { recognition.lang = sourceLangSelect.value; });
+
+        conversationView.addEventListener('click', (e) => {
+            const ttsButton = e.target.closest('.tts-button');
+            const copyButton = e.target.closest('.copy-button');
+            
+            if (ttsButton) {
+                const textToSpeak = ttsButton.closest('.bubble').querySelector('.text-content').textContent;
+                const lang = ttsButton.dataset.lang;
+                speakText(textToSpeak, lang);
+            }
+
+            if (copyButton) {
+                const textToCopy = copyButton.closest('.bubble').querySelector('.text-content').textContent;
+                 navigator.clipboard.writeText(textToCopy).then(() => {
+                    showUIMessage("Đã sao chép!", 1500);
+                }).catch(err => {
+                    console.error('Copy failed:', err);
+                    showUIMessage("Lỗi sao chép", 2000);
+                });
+            }
         });
 
-        setPersistence(auth, browserLocalPersistence)
-            .then(() => {
-                console.log("Firebase Auth persistence set to local.");
-            })
-            .catch((error) => {
-                console.error("Error setting auth persistence:", error);
-            });
+        // Panel Toggles
+        authToggleBtn.addEventListener('click', () => {
+             historyPanel.classList.add('translate-x-full');
+             authPanel.classList.toggle('translate-x-full');
+        });
+        historyToggleBtn.addEventListener('click', () => {
+             authPanel.classList.add('translate-x-full');
+             historyPanel.classList.toggle('translate-x-full');
+        });
+        closeAuthBtn.addEventListener('click', () => authPanel.classList.add('translate-x-full'));
+        closeHistoryBtn.addEventListener('click', () => historyPanel.classList.add('translate-x-full'));
 
+        // Auth Logic
+        registerButton.addEventListener('click', async () => { /* ... (same as original) ... */ });
+        loginButton.addEventListener('click', async () => { /* ... (same as original) ... */ });
+        logoutButton.addEventListener('click', async () => { /* ... (same as original) ... */ });
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                currentUserId = user.uid;
-                console.log("User logged in:", currentUserId, user.email);
-                userEmailDisplay.textContent = `Đã đăng nhập với: ${user.email} (ID: ${currentUserId.substring(0,6)}...)`;
-                signOutButton.classList.remove('hidden');
-                authContainer.classList.add('lab-hidden'); 
-                labSection.classList.remove('lab-hidden'); 
-                loadUserChemicals();
-                initializeLabKonva(); 
+                authForm.style.display = 'none';
+                userInfo.style.display = 'block';
+                userEmailDisplay.textContent = `Chào, ${user.email}`;
+                authStatus.textContent = `Đã đăng nhập`;
+                loadTranslationHistory(user.uid);
             } else {
-                currentUserId = null;
-                console.log("User logged out or not logged in.");
-                userEmailDisplay.textContent = "Chưa đăng nhập";
-                signOutButton.classList.add('hidden');
-                authContainer.classList.remove('lab-hidden'); 
-                labSection.classList.add('lab-hidden');     
-                clearLabOnLogout();
+                authForm.style.display = 'block';
+                userInfo.style.display = 'none';
+                userEmailDisplay.textContent = '';
+                authStatus.textContent = 'Chưa đăng nhập.';
+                translationHistoryDiv.innerHTML = '<p class="text-center text-gray-500 text-sm">Đăng nhập để xem lịch sử.</p>';
+                if (unsubscribeHistory) unsubscribeHistory();
             }
         });
-
-        loginButton.addEventListener('click', async () => {
-            const email = loginEmailInput.value;
-            const password = loginPasswordInput.value;
-            if (!email || !password) {
-                showToast("Vui lòng nhập email và mật khẩu.");
-                return;
-            }
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-                showToast("Đăng nhập thành công!");
-                loginEmailInput.value = '';
-                loginPasswordInput.value = '';
-            } catch (error) {
-                console.error("Lỗi đăng nhập:", error);
-                if (typeof showToast === 'function') {
-                    showToast(`Lỗi đăng nhập: ${error.message}`);
-                } else {
-                    console.error("showToast is not defined in loginButton catch. Error:", `Lỗi đăng nhập: ${error.message}`);
-                    alert(`Lỗi đăng nhập: ${error.message}`);
-                }
-            }
-        });
-
+        // --- Copy-pasted Auth functions for brevity ---
         registerButton.addEventListener('click', async () => {
-            const email = registerEmailInput.value;
-            const password = registerPasswordInput.value;
-            if (!email || !password) {
-                showToast("Vui lòng nhập email và mật khẩu.");
-                return;
-            }
-            if (password.length < 6) {
-                showToast("Mật khẩu phải có ít nhất 6 ký tự.");
-                return;
-            }
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            if (!email || !password) { showUIMessage("Vui lòng nhập email và mật khẩu."); return; }
             try {
                 await createUserWithEmailAndPassword(auth, email, password);
-                showToast("Đăng ký thành công! Đang chuyển đến đăng nhập...");
-                registerEmailInput.value = '';
-                registerPasswordInput.value = '';
-                showLoginLink.click(); 
-            } catch (error) {
-                console.error("Lỗi đăng ký:", error);
-                if (typeof showToast === 'function') {
-                    showToast(`Lỗi đăng ký: ${error.message}. Hãy đảm bảo phương thức Email/Password đã được bật trong Firebase Console.`);
-                } else {
-                    console.error("showToast is not defined in registerButton catch. Error:", `Lỗi đăng ký: ${error.message}`);
-                    alert(`Lỗi đăng ký: ${error.message}. Hãy đảm bảo phương thức Email/Password đã được bật trong Firebase Console.`);
-                }
-            }
+                showUIMessage("Đăng ký thành công!");
+                emailInput.value = ''; passwordInput.value = '';
+            } catch (error) { showUIMessage("Lỗi đăng ký: " + error.message, 5000); }
         });
-
-        signOutButton.addEventListener('click', async () => {
+        loginButton.addEventListener('click', async () => {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            if (!email || !password) { showUIMessage("Vui lòng nhập email và mật khẩu."); return; }
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                showUIMessage("Đăng nhập thành công!");
+                emailInput.value = ''; passwordInput.value = '';
+                authPanel.classList.add('translate-x-full');
+            } catch (error) { showUIMessage("Lỗi đăng nhập: " + error.message, 5000); }
+        });
+        logoutButton.addEventListener('click', async () => {
             try {
                 await signOut(auth);
-                showToast("Đã đăng xuất.");
-            } catch (error) {
-                console.error("Lỗi đăng xuất:", error);
-                if (typeof showToast === 'function') {
-                    showToast(`Lỗi đăng xuất: ${error.message}`);
-                } else {
-                    alert(`Lỗi đăng xuất: ${error.message}`);
-                }
-            }
-        });
-        
-        createChemicalButton.addEventListener('click', async () => {
-            if (!currentUserId) {
-                showToast("Vui lòng đăng nhập để tạo hóa chất.");
-                return;
-            }
-            const chemicalName = chemicalNameInput.value.trim();
-            if (!chemicalName) {
-                showToast("Vui lòng nhập tên hóa chất.");
-                return;
-            }
-            aiChemicalDefinitionArea.textContent = "Đang liên hệ với AI để định nghĩa hóa chất...";
-            currentSelectedAiChemical = null;
-            const prompt = `Cung cấp thông tin chi tiết về hóa chất "${chemicalName}" dưới dạng một đối tượng JSON. JSON object phải bao gồm các trường sau:
-- "name": (string) Tên đầy đủ và phổ biến của hóa chất.
-- "formula": (string) Công thức hóa học.
-- "appearance": (string) Mô tả ngắn về hình dạng, trạng thái ở điều kiện thường (ví dụ: chất lỏng không màu, chất rắn tinh thể màu trắng).
-- "solutionColor": (string) Một chuỗi RGBA đại diện cho màu sắc của dung dịch hóa chất khi hòa tan trong nước (nếu có thể). Ví dụ: "rgba(255, 100, 100, 0.6)" cho màu hồng nhạt, hoặc "rgba(255, 255, 255, 0.1)" nếu không màu/rất nhạt. Nếu là chất rắn không tan, có thể để "rgba(200,200,200,0.7)".
-- "description": (string) Mô tả chi tiết hơn về tính chất vật lý, hóa học cơ bản, ứng dụng hoặc cảnh báo an toàn (nếu có).
-- "density_g_cm3": (number, optional) Khối lượng riêng (g/cm³) nếu có.
-- "boiling_point_C": (number or string, optional) Nhiệt độ sôi (°C) nếu có.
-- "melting_point_C": (number or string, optional) Nhiệt độ nóng chảy (°C) nếu có.
-- "isFlammable": (boolean, optional) Có dễ cháy không.
-- "isReactive": (boolean, optional) Có dễ phản ứng không.
-- "specificReactions": (array of objects, optional) Một mảng các phản ứng đặc trưng, mỗi object có dạng {"with": "tên_chất_khác", "phenomenon": "mô_tả_hiện_tượng_trực_quan", "product": "sản_phẩm_chính"}. Chỉ bao gồm 1-2 phản ứng quan trọng nhất.
-
-Hãy đảm bảo output CHỈ LÀ JSON object đó, không có bất kỳ văn bản giải thích nào khác xung quanh JSON. Ví dụ cho HCl:
-{
-  "name": "Axit Clohydric",
-  "formula": "HCl",
-  "appearance": "Chất lỏng không màu, bốc khói trong không khí ẩm.",
-  "solutionColor": "rgba(255, 255, 255, 0.1)",
-  "description": "Là một axit mạnh, ăn mòn nhiều kim loại. Được sử dụng rộng rãi trong công nghiệp và phòng thí nghiệm.",
-  "density_g_cm3": 1.18,
-  "boiling_point_C": "Khoảng -85 (khan) đến 110 (dung dịch 20.2%)",
-  "isReactive": true,
-  "specificReactions": [
-    {"with": "NaOH", "phenomenon": "Phản ứng trung hòa, tỏa nhiệt, có thể có sủi bọt nhẹ.", "product": "NaCl, H2O"},
-    {"with": "AgNO3", "phenomenon": "Tạo kết tủa trắng AgCl.", "product": "AgCl"}
-  ]
-}
-`;
-            try {
-                const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-                const response = await fetch(GEMINI_API_URL_FLASH, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const result = await response.json();
-                if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts[0].text) {
-                    let rawJsonText = result.candidates[0].content.parts[0].text;
-                    rawJsonText = rawJsonText.replace(/^```json\s*([\s\S]*?)\s*```$/, '$1').trim();
-                    console.log("Raw JSON text from AI:", rawJsonText);
-                    currentSelectedAiChemical = JSON.parse(rawJsonText); 
-                    confirmChemicalDetails.innerHTML = `<pre class="bg-gray-100 p-2 rounded text-xs">${JSON.stringify(currentSelectedAiChemical, null, 2)}</pre>`;
-                    confirmSaveModal.classList.remove('hidden');
-                    aiChemicalDefinitionArea.textContent = `AI đã định nghĩa hóa chất: ${currentSelectedAiChemical.name || chemicalName}. Kiểm tra và xác nhận lưu.`;
-                } else {
-                    throw new Error("AI không trả về định nghĩa hóa chất hợp lệ.");
-                }
-            } catch (error) {
-                console.error("Lỗi khi gọi Gemini API hoặc parse JSON:", error);
-                aiChemicalDefinitionArea.textContent = `Lỗi: ${error.message}`;
-                currentSelectedAiChemical = null;
-            }
+                showUIMessage("Đã đăng xuất.");
+            } catch (error) { showUIMessage("Lỗi đăng xuất: " + error.message, 5000); }
         });
 
-        cancelSaveChemical.addEventListener('click', () => {
-            confirmSaveModal.classList.add('hidden');
-            currentSelectedAiChemical = null; 
-            aiChemicalDefinitionArea.textContent = "Đã hủy lưu hóa chất.";
-        });
-        
-        confirmSaveChemicalButtonAction.addEventListener('click', async () => {
-            if (!currentSelectedAiChemical || !currentUserId) {
-                showToast("Không có thông tin hóa chất để lưu hoặc bạn chưa đăng nhập.");
-                confirmSaveModal.classList.add('hidden');
-                return;
-            }
-            try {
-                const chemicalToSave = {
-                    ...currentSelectedAiChemical,
-                    userId: currentUserId, 
-                    createdAt: serverTimestamp() 
-                };
-                const chemicalCollectionRef = collection(db, "artifacts", appId, "users", currentUserId, "customChemicals");
-                const docRef = await addDoc(chemicalCollectionRef, chemicalToSave);
-                console.log("Hóa chất đã được lưu với ID: ", docRef.id);
-                showToast(`Đã lưu hóa chất: ${currentSelectedAiChemical.name || 'Chưa có tên'}`);
-                chemicalNameInput.value = ''; 
-                aiChemicalDefinitionArea.textContent = "Thông tin hóa chất từ AI sẽ hiển thị ở đây...";
-                currentSelectedAiChemical = null; 
-                confirmSaveModal.classList.add('hidden');
-            } catch (error) {
-                console.error("Lỗi khi lưu hóa chất vào Firestore:", error);
-                showToast(`Lỗi khi lưu hóa chất: ${error.message}`);
-            }
-        });
-
-        let unsubscribeUserChemicals = null; 
-
-        async function loadUserChemicals() {
-            if (!currentUserId) return;
-            console.log(`[loadUserChemicals] Loading chemicals for user: ${currentUserId}`);
-            if (unsubscribeUserChemicals) {
-                unsubscribeUserChemicals();
-                console.log("[loadUserChemicals] Unsubscribed from previous chemical listener.");
-            }
-            const chemicalsRef = collection(db, "artifacts", appId, "users", currentUserId, "customChemicals");
-            unsubscribeUserChemicals = onSnapshot(chemicalsRef, (querySnapshot) => {
-                console.log(`[onSnapshot] Received ${querySnapshot.docs.length} chemical documents.`);
-                userChemicalsContainer.innerHTML = ''; 
+        // Firestore - Load Translation History
+        function loadTranslationHistory(userId) {
+            if (unsubscribeHistory) unsubscribeHistory();
+            const q = query(collection(db, "translations"), where("userId", "==", userId), orderBy("createdAt", "desc"));
+            
+            unsubscribeHistory = onSnapshot(q, (querySnapshot) => {
                 if (querySnapshot.empty) {
-                    userChemicalsContainer.innerHTML = '<p class="text-gray-500 col-span-full text-center py-4">Bạn chưa lưu hóa chất nào.</p>';
+                    translationHistoryDiv.innerHTML = '<p class="text-center text-gray-500 text-sm">Chưa có lịch sử nào.</p>';
                     return;
                 }
-                querySnapshot.forEach((docSnap) => {
-                    const chemicalData = docSnap.data();
-                    const chemicalId = docSnap.id;
-                    console.log(`[onSnapshot] Processing chemical: ${chemicalData.name} (ID: ${chemicalId})`);
-                    const chemicalElement = document.createElement('div');
-                    chemicalElement.className = 'p-3 bg-white border rounded shadow-sm cursor-pointer hover:shadow-md transition-shadow';
-                    chemicalElement.setAttribute('data-chemical-id', chemicalId);
-                    const bgColor = chemicalData.solutionColor || 'rgba(200,200,200,0.7)';
-                    chemicalElement.style.backgroundColor = bgColor.replace(/[\d\.]+\)$/g, '0.3)'); 
-                    chemicalElement.style.borderColor = bgColor.replace(/[\d\.]+\)$/g, '1)'); 
-                    const nameEl = document.createElement('h4');
-                    nameEl.className = 'font-semibold text-sm mb-1 truncate';
-                    nameEl.textContent = chemicalData.name || "Chưa đặt tên";
-                    chemicalElement.appendChild(nameEl);
-                    const formulaEl = document.createElement('p');
-                    formulaEl.className = 'text-xs text-gray-600 mb-2 truncate';
-                    formulaEl.textContent = `(${chemicalData.formula || 'N/A'})`;
-                    chemicalElement.appendChild(formulaEl);
-                    const deleteButton = document.createElement('button');
-                    deleteButton.innerHTML = '&times;'; 
-                    deleteButton.className = 'absolute top-1 right-1 text-xs bg-red-400 hover:bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center focus:outline-none';
-                    deleteButton.title = "Xóa hóa chất này";
-                    deleteButton.style.lineHeight = '1'; 
-                    chemicalElement.style.position = 'relative'; 
-                    deleteButton.onclick = async (e) => {
-                        e.stopPropagation(); 
-                        if (confirm(`Bạn có chắc muốn xóa hóa chất "${chemicalData.name || 'này'}" không?`)) {
-                            try {
-                                await deleteDoc(doc(db, "artifacts", appId, "users", currentUserId, "customChemicals", chemicalId));
-                                showToast("Đã xóa hóa chất.");
-                            } catch (error) {
-                                console.error("Lỗi khi xóa hóa chất:", error);
-                                showToast(`Lỗi xóa: ${error.message}`);
-                            }
-                        }
-                    };
-                    chemicalElement.appendChild(deleteButton);
-                    chemicalElement.addEventListener('click', () => {
-                        console.log("Clicked on saved chemical:", chemicalData);
-                        // Thay vì showToast, sẽ gọi hàm tạo đối tượng Konva
-                        addKonvaChemicalFromData(chemicalData, chemicalId);
-                    });
-                    userChemicalsContainer.appendChild(chemicalElement);
+                translationHistoryDiv.innerHTML = '';
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const item = document.createElement('div');
+                    item.className = 'p-3 rounded-lg bg-gray-100 border border-gray-200';
+                    item.innerHTML = `
+                        <p class="text-sm text-gray-800">${data.originalText}</p>
+                        <p class="text-sm font-semibold text-blue-600 mt-1">${data.translatedText}</p>
+                        <div class="text-right text-xs text-gray-400 mt-2">${new Date(data.createdAt?.seconds * 1000).toLocaleString('vi-VN')}</div>
+                    `;
+                    translationHistoryDiv.appendChild(item);
                 });
             }, (error) => {
-                console.error("Lỗi khi lắng nghe thay đổi hóa chất:", error);
-                userChemicalsContainer.innerHTML = '<p class="text-red-500 col-span-full text-center py-4">Lỗi tải danh sách hóa chất.</p>';
+                console.error("Lỗi tải lịch sử: ", error);
+                translationHistoryDiv.innerHTML = '<p class="text-center text-red-500 text-sm">Lỗi khi tải lịch sử.</p>';
             });
         }
         
-        function clearLabOnLogout() {
-            console.log("[clearLabOnLogout] Clearing lab data.");
-            if (unsubscribeUserChemicals) {
-                unsubscribeUserChemicals(); 
-                unsubscribeUserChemicals = null;
-                console.log("[clearLabOnLogout] Unsubscribed from chemical listener.");
-            }
-            userChemicalsContainer.innerHTML = '<p class="text-gray-500 col-span-full text-center py-4">Vui lòng đăng nhập để xem hóa chất.</p>';
-            if (konvaStage) { 
-                if(konvaLayer) konvaLayer.find('.dynamic-chemical').forEach(node => node.destroy()); 
-                if(konvaEffectsLayer) konvaEffectsLayer.find('.bubble, .smoke, .precipitate').forEach(node => node.destroy()); 
-                konvaChemicalsInBeaker = []; 
-                updateKonvaSolutionVisualState(); 
-                if(konvaLayer) konvaLayer.batchDraw(); 
-                if(konvaEffectsLayer) konvaEffectsLayer.batchDraw(); 
-                console.log("[clearLabOnLogout] Konva stage cleared.");
-            }
-            currentSelectedAiChemical = null;
-            aiChemicalDefinitionArea.textContent = "Thông tin hóa chất từ AI sẽ hiển thị ở đây...";
-        }
-
-        let konvaStage, konvaLayer, konvaEffectsLayer; 
-        let konvaBeaker, konvaSolution, konvaBeakerLabel;
-        let konvaChemicalsInBeaker = []; 
-        let konvaBubbleAnimation, konvaSmokeAnimation, konvaPrecipitateAnimation;
-
-        const KONVA_INITIAL_STAGE_WIDTH = 600;
-        const KONVA_INITIAL_STAGE_HEIGHT = 400;
-        const KONVA_BEAKER_BASE_SIZE = { width: 150, height: 180 };
-        const KONVA_BEAKER_BASE_X = KONVA_INITIAL_STAGE_WIDTH / 2 - (KONVA_BEAKER_BASE_SIZE.width / 2);
-        const KONVA_BEAKER_BASE_Y = KONVA_INITIAL_STAGE_HEIGHT - KONVA_BEAKER_BASE_SIZE.height - 20;
-        const KONVA_MAX_LIQUID_RISE = KONVA_BEAKER_BASE_SIZE.height * 0.7; 
-        const KONVA_SOLUTION_PADDING_BASE = 8;
-
-        function initializeLabKonva() {
-            console.log("[initializeLabKonva] Initializing Konva stage and objects.");
-            if (konvaStage) { 
-                konvaStage.batchDraw();
-                return;
-            }
-            const konvaOuterEl = document.getElementById('konva-outer-container');
-            let currentW = Math.min(KONVA_INITIAL_STAGE_WIDTH, konvaOuterEl.clientWidth > 20 ? konvaOuterEl.clientWidth - 20 : KONVA_INITIAL_STAGE_WIDTH);
-            let currentH = KONVA_INITIAL_STAGE_HEIGHT; 
-            konvaStage = new Konva.Stage({
-                container: 'konva-stage-container',
-                width: currentW,
-                height: currentH,
-            });
-            konvaLayer = new Konva.Layer();
-            konvaStage.add(konvaLayer);
-            konvaEffectsLayer = new Konva.Layer();
-            konvaStage.add(konvaEffectsLayer);
-            konvaBeaker = new Konva.Rect({
-                x: getKonvaResponsiveValue(KONVA_BEAKER_BASE_X, KONVA_INITIAL_STAGE_WIDTH, currentW),
-                y: getKonvaResponsiveValue(KONVA_BEAKER_BASE_Y, KONVA_INITIAL_STAGE_HEIGHT, currentH),
-                width: getKonvaResponsiveSize(KONVA_BEAKER_BASE_SIZE.width, KONVA_INITIAL_STAGE_WIDTH, currentW).width,
-                height: getKonvaResponsiveSize(KONVA_BEAKER_BASE_SIZE.height, KONVA_INITIAL_STAGE_WIDTH, currentW).height, 
-                fill: 'rgba(233, 233, 233, 0.5)',
-                stroke: 'black',
-                strokeWidth: Math.max(1, getKonvaResponsiveValue(2.5, KONVA_INITIAL_STAGE_WIDTH, currentW)),
-                name: 'beaker'
-            });
-            konvaLayer.add(konvaBeaker);
-            konvaSolution = new Konva.Rect({
-                fill: 'rgba(173, 216, 230, 0.3)',
-                name: 'solution',
-                visible: false
-            });
-            konvaLayer.add(konvaSolution); 
-            konvaBeaker.moveToTop(); 
-            const labelFontSize = Math.max(12, getKonvaResponsiveValue(20, KONVA_INITIAL_STAGE_WIDTH, currentW));
-            konvaBeakerLabel = new Konva.Text({
-                text: 'Cốc TN',
-                fontSize: labelFontSize,
-                fill: 'black',
-            });
-            konvaLayer.add(konvaBeakerLabel);
-            updateKonvaBeakerLabelPosition();
-            updateKonvaSolutionVisualState(); 
-            window.addEventListener('resize', fitKonvaStageToParent);
-            fitKonvaStageToParent(); 
-            console.log("[initializeLabKonva] Konva initialized.");
-        }
+        // --- Initial Load ---
+        initializeSpeechRecognition();
         
-        function getKonvaResponsiveValue(baseValue, baseStageDim, currentDim) {
-            return (baseValue / baseStageDim) * currentDim;
-        }
-        function getKonvaResponsiveSize(baseDim, baseStageDim, currentDim) {
-            const scale = currentDim / baseStageDim;
-            return { width: baseDim * scale, height: baseDim * scale }; 
-        }
-
-        function updateKonvaBeakerLabelPosition() {
-            if (!konvaBeaker || !konvaBeakerLabel) return;
-            konvaBeakerLabel.x(konvaBeaker.x() + konvaBeaker.width() / 2);
-            konvaBeakerLabel.y(konvaBeaker.y() + konvaBeaker.height() / 2);
-            konvaBeakerLabel.offsetX(konvaBeakerLabel.width() / 2);
-            konvaBeakerLabel.offsetY(konvaBeakerLabel.height() / 2);
-        }
-        
-        function updateKonvaSolutionVisualState() {
-            if (!konvaSolution || !konvaBeaker || !konvaStage) { // Thêm kiểm tra konvaStage
-                console.warn("[updateKonvaSolutionVisualState] Konva elements not fully initialized.");
-                return;
-            }
-            console.log("[updateKonvaSolutionVisualState] Konva chemicals:", konvaChemicalsInBeaker.length);
-            const padding = getKonvaResponsiveValue(KONVA_SOLUTION_PADDING_BASE, KONVA_INITIAL_STAGE_WIDTH, konvaStage.width());
-            konvaSolution.x(konvaBeaker.x() + padding);
-            konvaSolution.width(konvaBeaker.width() - 2 * padding);
-            if (konvaChemicalsInBeaker.length === 0) {
-                konvaSolution.height(0);
-                konvaSolution.y(konvaBeaker.y() + konvaBeaker.height() - padding);
-                konvaSolution.visible(false);
-            } else {
-                const maxRise = getKonvaResponsiveValue(KONVA_MAX_LIQUID_RISE, KONVA_INITIAL_STAGE_HEIGHT, konvaStage.height());
-                const numChemicalTypes = Math.max(1, 5); 
-                const risePerChemicalDrop = maxRise / numChemicalTypes; 
-                let targetHeight = Math.min(konvaChemicalsInBeaker.length * risePerChemicalDrop, maxRise);
-                targetHeight = Math.min(targetHeight, konvaBeaker.height() - 2 * padding);
-                konvaSolution.height(targetHeight);
-                konvaSolution.y(konvaBeaker.y() + konvaBeaker.height() - targetHeight - padding);
-                konvaSolution.visible(true);
-            }
-            konvaLayer.batchDraw();
-        }
-
-        function addKonvaChemicalFromData(chemicalData, firestoreId) {
-            if (!konvaStage || !konvaLayer) {
-                showToast("Phòng thí nghiệm chưa sẵn sàng.");
-                return;
-            }
-            console.log(`[addKonvaChemicalFromData] Creating Konva object for: ${chemicalData.name}`);
-            const spawnX = getKonvaResponsiveValue(50 + Math.random() * 100, KONVA_INITIAL_STAGE_WIDTH, konvaStage.width());
-            const spawnY = getKonvaResponsiveValue(50 + Math.random() * 100, KONVA_INITIAL_STAGE_HEIGHT, konvaStage.height());
-            const chemicalSize = getKonvaResponsiveSize(60, KONVA_INITIAL_STAGE_WIDTH, konvaStage.width()); 
-            const group = new Konva.Group({
-                x: spawnX, y: spawnY, draggable: true, name: 'dynamic-chemical', 
-                id: firestoreId, attrs: { chemicalData: chemicalData } 
-            });
-            const rect = new Konva.Rect({
-                width: chemicalSize.width, height: chemicalSize.height * 1.2, 
-                fill: chemicalData.solutionColor || 'rgba(200,200,200,0.7)',
-                stroke: 'black', strokeWidth: 1, cornerRadius: 5,
-                shadowColor: 'black', shadowBlur: 3, shadowOpacity: 0.3,
-            });
-            group.add(rect);
-            const text = new Konva.Text({
-                text: chemicalData.formula || chemicalData.name.substring(0,10),
-                fontSize: getKonvaResponsiveValue(10, KONVA_INITIAL_STAGE_WIDTH, konvaStage.width()),
-                fill: 'black', padding: 5, width: rect.width(),
-                align: 'center', verticalAlign: 'middle', height: rect.height()
-            });
-            group.add(text);
-            konvaLayer.add(group);
-            group.moveToTop(); 
-
-            group.on('dragstart', function() {
-                this.moveToTop(); this.scale({x: 1.1, y: 1.1}); konvaLayer.batchDraw();
-            });
-
-            // THÊM SỰ KIỆN CLICK CHO KONVA GROUP
-            group.on('click tap', function(evt) {
-                if (this.isDragging() || (this.getStage() && this.getStage().isDragging && this.getStage().isDragging())) { 
-                    return; // Không hiển thị panel nếu đang kéo
-                }
-                const data = this.attrs.chemicalData;
-                console.log("[Konva Chemical Click] Displaying info for:", data.name);
-                displayChemicalInfoInPanel(data); // Gọi hàm hiển thị panel
-            });
-
-            group.on('dragend', function() {
-                this.scale({x: 1, y: 1});
-                const droppedChemicalData = this.attrs.chemicalData; 
-                const beakerRect = konvaBeaker.getClientRect();
-                const chemicalRect = this.getClientRect();
-                if (Konva.Util.haveIntersection(beakerRect, chemicalRect)) {
-                    showToast(`Đã thêm ${droppedChemicalData.name} vào cốc.`);
-                    konvaChemicalsInBeaker.push(droppedChemicalData); 
-                    console.log("[Konva DragEnd] Chemicals in beaker:", JSON.stringify(konvaChemicalsInBeaker.map(c => c.name)));
-                    updateKonvaSolutionVisualState(); 
-                    triggerKonvaReactionAI(); 
-                    this.destroy();
-                } 
-                konvaLayer.batchDraw();
-            });
-            konvaLayer.batchDraw();
-        }
-        
-        async function triggerKonvaReactionAI() {
-            if (konvaChemicalsInBeaker.length < 1) { 
-                stopAllKonvaEffects(); updateKonvaSolutionVisualState(); 
-                document.getElementById('responseContainer').textContent = "Cốc thí nghiệm trống hoặc chỉ có một hóa chất (chưa đủ để phản ứng).";
-                return;
-            }
-            stopAllKonvaEffects(); 
-            const chemicalNamesInBeaker = konvaChemicalsInBeaker.map(c => c.name).join(', ');
-            document.getElementById('responseContainer').textContent = `Đang phân tích phản ứng giữa: ${chemicalNamesInBeaker}...`;
-            const detailedChemicalsForAI = konvaChemicalsInBeaker.map(chem => ({
-                name: chem.name, formula: chem.formula, specificReactions: chem.specificReactions 
-            }));
-            const prompt = `Phân tích phản ứng hóa học có thể xảy ra khi trộn các hóa chất sau trong một cốc thí nghiệm: ${JSON.stringify(detailedChemicalsForAI, null, 2)}. 
-Hãy cung cấp kết quả dưới dạng một đối tượng JSON duy nhất, bao gồm các trường sau:
-- "reactionOccurred": (boolean) Phản ứng có xảy ra không.
-- "mainReactionEquation": (string, optional) Phương trình hóa học chính của phản ứng (nếu có).
-- "products": (array of strings, optional) Tên các sản phẩm chính tạo thành.
-- "visualPhenomena": { 
-    "colorChangeTo": (string, optional) Màu RGBA mới của dung dịch (ví dụ: "rgba(100,255,100,0.7)"). Nếu không đổi màu đáng kể, có thể bỏ qua hoặc giữ màu hỗn hợp.
-    "gasEvolution": (boolean, optional) Có sủi bọt khí không.
-    "precipitateFormation": (boolean, optional) Có tạo kết tủa không.
-    "precipitateColor": (string, optional) Mô tả màu kết tủa (ví dụ: "trắng", "vàng nhạt").
-    "smokeOrVapor": (boolean, optional) Có khói hoặc hơi bay lên không.
-    "temperatureChange": (string, optional) Mô tả thay đổi nhiệt độ (ví dụ: "tỏa nhiệt mạnh", "thu nhiệt", "không đáng kể").
-  }
-- "explanation": (string) Giải thích chi tiết về hiện tượng, phản ứng và kết quả.
-Output chỉ là JSON object.
-`;
-            try {
-                const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-                const response = await fetch(GEMINI_API_URL_FLASH, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const result = await response.json();
-                console.log("AI Reaction Analysis Raw:", result);
-                if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts[0].text) {
-                    let rawJsonText = result.candidates[0].content.parts[0].text;
-                    rawJsonText = rawJsonText.replace(/^```json\s*([\s\S]*?)\s*```$/, '$1').trim();
-                    console.log("AI Reaction Analysis Parsed JSON Text:", rawJsonText);
-                    const reactionData = JSON.parse(rawJsonText);
-                    document.getElementById('responseContainer').innerHTML = `<strong>Giải thích từ AI:</strong><br>${reactionData.explanation || "Không có giải thích."}<br><strong>Phương trình (nếu có):</strong> ${reactionData.mainReactionEquation || "N/A"}<br><strong>Sản phẩm:</strong> ${reactionData.products ? reactionData.products.join(', ') : "N/A"}`;
-                    if (reactionData.reactionOccurred && reactionData.visualPhenomena) {
-                        const phenomena = reactionData.visualPhenomena;
-                        if (phenomena.colorChangeTo) konvaSolution.fill(phenomena.colorChangeTo);
-                        if (phenomena.gasEvolution) startKonvaBubblingEffect();
-                        if (phenomena.precipitateFormation) startKonvaPrecipitateEffect(phenomena.precipitateColor); 
-                        if (phenomena.smokeOrVapor) startKonvaSmokeEffect();
-                    }
-                } else {
-                     throw new Error("AI không trả về phân tích phản ứng hợp lệ.");
-                }
-            } catch (error) {
-                console.error("Lỗi khi gọi AI phân tích phản ứng:", error);
-                document.getElementById('responseContainer').textContent = `Lỗi AI: ${error.message}`;
-            }
-            konvaLayer.batchDraw();
-            konvaEffectsLayer.batchDraw();
-        }
-
-        function startKonvaBubblingEffect() {
-            console.log("[KonvaEffect] Starting Bubbling");
-            if (konvaBubbleAnimation) konvaBubbleAnimation.stop();
-            konvaEffectsLayer.find('.bubble').forEach(n => n.destroy());
-            konvaBubbleAnimation = new Konva.Animation(frame => {
-                if (!frame || !konvaSolution.visible() || konvaSolution.height() === 0) return;
-                if (frame.timeDiff > 100 && Math.random() < 0.3) {
-                    const bubble = new Konva.Circle({ 
-                        x: konvaSolution.x() + Math.random() * konvaSolution.width(),
-                        y: konvaSolution.y() + konvaSolution.height() - 5,
-                        radius: Math.random() * 3 + 1,
-                        fill: 'white', opacity: 0.7, name: 'bubble'
-                    });
-                    konvaEffectsLayer.add(bubble);
-                    new Konva.Tween({node: bubble, duration: Math.random() * 1.5 + 1, y: konvaSolution.y() + 10, opacity: 0, onFinish: () => bubble.destroy()}).play();
-                }
-            }, konvaEffectsLayer);
-            konvaBubbleAnimation.start();
-        }
-        function startKonvaSmokeEffect() {
-            console.log("[KonvaEffect] Starting Smoke");
-            if (konvaSmokeAnimation) konvaSmokeAnimation.stop();
-            konvaEffectsLayer.find('.smoke').forEach(n => n.destroy());
-            konvaSmokeAnimation = new Konva.Animation(frame => {
-                if (!frame) return;
-                if (frame.timeDiff > 150 && Math.random() < 0.2) {
-                    const smoke = new Konva.Ellipse({ 
-                        x: konvaBeaker.x() + konvaBeaker.width() / 2 + (Math.random() - 0.5) * konvaBeaker.width() * 0.6,
-                        y: konvaBeaker.y() - 8, radiusX: Math.random() * 10 + 6, radiusY: Math.random() * 6 + 4,
-                        fill: 'rgba(180,180,180,0.3)', opacity: 0.5, name: 'smoke'
-                    });
-                    konvaEffectsLayer.add(smoke);
-                    new Konva.Tween({node: smoke, duration: Math.random() * 2.5 + 1.5, y: konvaBeaker.y() - 40, opacity: 0, scaleX: 1.5, scaleY: 1.5, onFinish: () => smoke.destroy()}).play();
-                }
-            }, konvaEffectsLayer);
-            konvaSmokeAnimation.start();
-        }
-        function startKonvaPrecipitateEffect(precipitateColorDescription = "trắng") {
-            console.log("[KonvaEffect] Starting Precipitate, color:", precipitateColorDescription);
-            if (konvaPrecipitateAnimation) konvaPrecipitateAnimation.stop();
-            konvaEffectsLayer.find('.precipitate').forEach(n => n.destroy());
-            let fillColor = 'rgba(250, 250, 250, 0.9)'; 
-            if (precipitateColorDescription && precipitateColorDescription.toLowerCase().includes("vàng")) fillColor = 'rgba(255, 255, 200, 0.9)';
-            konvaPrecipitateAnimation = new Konva.Animation(frame => {
-                 if (!frame || !konvaSolution.visible() || konvaSolution.height() === 0) return;
-                if (frame.timeDiff > 50 && Math.random() < 0.4) {
-                    const particle = new Konva.Circle({ 
-                        x: konvaSolution.x() + Math.random() * konvaSolution.width(),
-                        y: konvaSolution.y() + Math.random() * konvaSolution.height() * 0.5,
-                        radius: Math.random() * 2 + 0.8, fill: fillColor, name: 'precipitate'
-                    });
-                    konvaEffectsLayer.add(particle);
-                    new Konva.Tween({node: particle, duration: Math.random() * 3 + 2, y: konvaSolution.y() + konvaSolution.height() - particle.radius() - 3, easing: Konva.Easings.EaseIn}).play();
-                }
-            }, konvaEffectsLayer);
-            konvaPrecipitateAnimation.start();
-        }
-
-        function stopAllKonvaEffects() {
-            console.log("[KonvaEffect] Stopping all effects");
-            if (konvaBubbleAnimation) konvaBubbleAnimation.stop();
-            if (konvaSmokeAnimation) konvaSmokeAnimation.stop();
-            if (konvaPrecipitateAnimation) konvaPrecipitateAnimation.stop();
-            konvaEffectsLayer.find('.bubble, .smoke, .precipitate').forEach(n => n.destroy());
-            konvaEffectsLayer.batchDraw();
-        }
-        
-        document.getElementById('resetBeakerButton').addEventListener('click', () => {
-            konvaChemicalsInBeaker = [];
-            stopAllKonvaEffects();
-            updateKonvaSolutionVisualState();
-            konvaSolution.fill('rgba(173, 216, 230, 0.3)'); 
-            konvaLayer.batchDraw();
-            document.getElementById('responseContainer').textContent = "Cốc đã được làm sạch.";
-            showToast("Cốc đã được làm sạch.");
-        });
-        
-        document.getElementById('sendPromptButtonLab').addEventListener('click', () => {
-            const promptText = document.getElementById('promptInput').value;
-            callGeminiAPI(promptText); // SỬA Ở ĐÂY: Gọi hàm đã được định nghĩa lại
-        });
-
-
-        function fitKonvaStageToParent() {
-            const container = document.getElementById('konva-outer-container');
-            if (!container || !konvaStage) return;
-            let containerWidth = container.offsetWidth - 16; 
-            if (containerWidth <=0) containerWidth = KONVA_INITIAL_STAGE_WIDTH; 
-            const scale = containerWidth / KONVA_INITIAL_STAGE_WIDTH;
-            konvaStage.width(containerWidth);
-            konvaStage.height(KONVA_INITIAL_STAGE_HEIGHT * scale); 
-            if (konvaBeaker) {
-                konvaBeaker.width(getKonvaResponsiveSize(KONVA_BEAKER_BASE_SIZE.width, KONVA_INITIAL_STAGE_WIDTH, konvaStage.width()).width);
-                konvaBeaker.height(getKonvaResponsiveSize(KONVA_BEAKER_BASE_SIZE.height, KONVA_INITIAL_STAGE_WIDTH, konvaStage.width()).height);
-                konvaBeaker.x(getKonvaResponsiveValue(KONVA_BEAKER_BASE_X, KONVA_INITIAL_STAGE_WIDTH, konvaStage.width()));
-                konvaBeaker.y(getKonvaResponsiveValue(KONVA_BEAKER_BASE_Y, KONVA_INITIAL_STAGE_HEIGHT, konvaStage.height())); 
-                updateKonvaBeakerLabelPosition();
-            }
-            if (konvaSolution) {
-                updateKonvaSolutionVisualState();
-            }
-            konvaLayer.find('.dynamic-chemical').forEach(group => {
-                 const chemicalSize = getKonvaResponsiveSize(60, KONVA_INITIAL_STAGE_WIDTH, konvaStage.width());
-                 group.findOne('Rect').width(chemicalSize.width).height(chemicalSize.height * 1.2);
-                 group.findOne('Text').fontSize(getKonvaResponsiveValue(10, KONVA_INITIAL_STAGE_WIDTH, konvaStage.width())).width(chemicalSize.width);
-            });
-            konvaStage.batchDraw();
-            konvaEffectsLayer.batchDraw();
-        }
-
     </script>
 </body>
 </html>
