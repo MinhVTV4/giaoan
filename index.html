@@ -103,6 +103,24 @@
         @keyframes spinner-border {
             to { transform: rotate(360deg); }
         }
+        /* Listening indicator */
+        .listening-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            margin: 0 2px;
+            background-color: currentColor;
+            border-radius: 50%;
+            opacity: 0.7;
+            animation: listening-pulse 1.4s infinite ease-in-out both;
+        }
+        .listening-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .listening-indicator span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes listening-pulse {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.5;}
+            40% { transform: scale(1.0); opacity: 1;}
+        }
+
         /* Toggle Switch Style */
         .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
         .switch input { opacity: 0; width: 0; height: 0; }
@@ -323,7 +341,8 @@
         let recognition;
         let isRecording = false; // Is the mic hardware currently on?
         let isContinuousModeActive = false; // Is the "Conversation Mode" feature on?
-        let finalTranscript = '';
+        let currentListenBubbleId = null;
+        let finalTranscriptForBubble = '';
         let unsubscribeHistory = null;
         
         // --- App Settings ---
@@ -351,7 +370,7 @@
         }
 
         function createBubble(text, isUser, lang) {
-            const bubbleId = `bubble-${Date.now()}`;
+            const bubbleId = `bubble-${Date.now()}-${Math.random()}`;
             const bubbleWrapper = document.createElement('div');
             bubbleWrapper.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
             
@@ -379,54 +398,85 @@
                 return;
             }
             recognition = new webkitSpeechRecognition();
-            recognition.continuous = false; // Important for auto-restart logic
+            // FIX: Set continuous to false. This makes the browser automatically detect the end of a single utterance.
+            // This is the key to making toggle and continuous mode work without a manual timer.
+            recognition.continuous = false; 
             recognition.interimResults = true;
             recognition.lang = sourceLangSelect.value;
             
             recognition.onstart = () => {
                 permissionOverlay.style.display = 'none';
                 isRecording = true;
-                finalTranscript = ''; // Reset transcript for the new session
+                finalTranscriptForBubble = ''; 
+                currentListenBubbleId = createBubble(
+                    '<div class="listening-indicator"><span></span><span></span><span></span></div>',
+                     true,
+                     sourceLangSelect.value
+                );
                 micButton.classList.add('recording');
                 micButton.querySelector('i').className = 'fas fa-stop text-2xl';
             };
             
             recognition.onresult = (event) => {
                 let interimTranscript = '';
-                let tempFinal = '';
+                let finalChunk = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    const transcript = event.results[i][0].transcript;
                     if (event.results[i].isFinal) {
-                        tempFinal += event.results[i][0].transcript;
+                        finalChunk += transcript;
                     } else {
-                        interimTranscript += event.results[i][0].transcript;
+                        interimTranscript += transcript;
                     }
                 }
-                finalTranscript = tempFinal; // Only update final transcript when it's truly final
+                
+                finalTranscriptForBubble += finalChunk; // Append final chunks as they come in.
+                
+                const listeningBubble = document.getElementById(currentListenBubbleId);
+                if (listeningBubble) {
+                    listeningBubble.querySelector('.text-content').textContent = finalTranscriptForBubble + interimTranscript;
+                }
             };
             
             recognition.onerror = (event) => {
                 console.error("Speech recognition error details:", { error: event.error, message: event.message });
+                isRecording = false;
                 if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
                     permissionOverlay.style.display = 'flex';
                     micButton.disabled = true;
                     micButton.classList.add('bg-gray-400', 'cursor-not-allowed');
                 }
-                isContinuousModeActive = false; // Turn off continuous mode on error
+                if (event.error !== 'no-speech') {
+                     isContinuousModeActive = false;
+                }
+                const listeningBubble = document.getElementById(currentListenBubbleId);
+                if (listeningBubble) listeningBubble.parentElement.remove();
+                currentListenBubbleId = null;
+                 micButton.classList.remove('recording');
+                 micButton.querySelector('i').className = 'fas fa-microphone-alt text-2xl';
             };
 
             recognition.onend = () => {
                 isRecording = false;
-                const transcriptToProcess = finalTranscript.trim();
 
-                if (transcriptToProcess) {
-                    translateAndDisplay(transcriptToProcess);
+                const transcriptToProcess = finalTranscriptForBubble.trim();
+                const listeningBubble = document.getElementById(currentListenBubbleId);
+                
+                if (listeningBubble) {
+                     if (transcriptToProcess) {
+                        listeningBubble.querySelector('.text-content').textContent = transcriptToProcess;
+                        translateAndDisplay(transcriptToProcess);
+                     } else {
+                        listeningBubble.parentElement.remove();
+                     }
                 }
+                currentListenBubbleId = null;
 
-                // Auto-restart logic for continuous mode
+                // FIX: Auto-restart logic is now simpler and more reliable.
                 if (appSettings.recordingMode === 'continuous' && isContinuousModeActive) {
-                    recognition.start();
+                    // Short delay to prevent instant re-triggering.
+                    setTimeout(() => { if(isContinuousModeActive) recognition.start(); }, 200);
                 } else {
-                    isContinuousModeActive = false; // Ensure it's off if not in continuous mode
+                    isContinuousModeActive = false;
                     micButton.classList.remove('recording');
                     micButton.querySelector('i').className = 'fas fa-microphone-alt text-2xl';
                 }
@@ -439,7 +489,6 @@
                 return;
             }
 
-            const userBubbleId = createBubble(text, true, sourceLangSelect.value);
             const assistantBubbleId = createBubble('<span class="spinner"></span>', false, targetLangSelect.value);
             const assistantBubble = document.getElementById(assistantBubbleId);
             const assistantTextContent = assistantBubble.querySelector('.text-content');
@@ -513,8 +562,11 @@
                     // This mode is handled by mousedown/mouseup
                     break;
                 case 'toggle':
-                    if (isRecording) recognition.stop();
-                    else recognition.start();
+                    if (isRecording) {
+                        recognition.stop();
+                    } else {
+                        recognition.start();
+                    }
                     break;
                 case 'continuous':
                     if (isContinuousModeActive) {
@@ -631,8 +683,10 @@
         recordingModeRadios.forEach(radio => {
             radio.addEventListener('change', (e) => {
                 if (e.target.checked) {
-                    if (isRecording) recognition.stop();
-                    isContinuousModeActive = false;
+                    if (isRecording) {
+                        isContinuousModeActive = false; // Always stop continuous mode when changing settings
+                        recognition.stop();
+                    }
                     appSettings.recordingMode = e.target.value;
                     updateMicInstruction();
                     saveSettings();
