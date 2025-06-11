@@ -13,17 +13,17 @@
             background-color: #f0f2f5;
         }
         /* Style cho thanh cuộn */
-        #conversationView::-webkit-scrollbar {
+        #conversationView::-webkit-scrollbar, #historyPanel::-webkit-scrollbar, #settingsPanel::-webkit-scrollbar {
             width: 6px;
         }
-        #conversationView::-webkit-scrollbar-track {
+        #conversationView::-webkit-scrollbar-track, #historyPanel::-webkit-scrollbar-track, #settingsPanel::-webkit-scrollbar-track {
             background: #f1f1f1;
         }
-        #conversationView::-webkit-scrollbar-thumb {
+        #conversationView::-webkit-scrollbar-thumb, #historyPanel::-webkit-scrollbar-thumb, #settingsPanel::-webkit-scrollbar-thumb {
             background: #d1d5db;
             border-radius: 6px;
         }
-        #conversationView::-webkit-scrollbar-thumb:hover {
+        #conversationView::-webkit-scrollbar-thumb:hover, #historyPanel::-webkit-scrollbar-thumb:hover, #settingsPanel::-webkit-scrollbar-thumb:hover {
             background: #a5a9af;
         }
         
@@ -103,6 +103,14 @@
         @keyframes spinner-border {
             to { transform: rotate(360deg); }
         }
+        /* Toggle Switch Style */
+        .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 28px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #2563eb; }
+        input:checked + .slider:before { transform: translateX(22px); }
+
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-2 sm:p-4">
@@ -113,8 +121,11 @@
                  <h1 class="text-xl sm:text-2xl font-bold text-gray-800">Trình Phiên Dịch Chat</h1>
                  <p class="text-xs sm:text-sm text-gray-500">Nhấn & Giữ Micro để nói</p>
             </div>
-            <!-- Auth and History buttons -->
+            <!-- Header buttons -->
             <div class="flex items-center space-x-2">
+                 <button id="settingsToggleBtn" class="p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" title="Cài đặt">
+                     <i class="fas fa-cog text-xl text-gray-600"></i>
+                 </button>
                  <button id="authToggleBtn" class="p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" title="Tài khoản">
                      <i class="fas fa-user-circle text-xl text-gray-600"></i>
                  </button>
@@ -137,7 +148,7 @@
                 </div>
             </div>
 
-            <!-- FIX: Added a dedicated overlay for permission errors -->
+            <!-- Permission Overlay -->
             <div id="permission-overlay" class="absolute inset-0 bg-white/90 backdrop-blur-sm z-30 flex-col items-center justify-center text-center p-6 rounded-lg" style="display: none;">
                 <i class="fas fa-microphone-slash text-5xl text-red-500 mb-4"></i>
                 <h3 class="text-2xl font-bold text-gray-800 mb-2">Cần Quyền Truy Cập Micro</h3>
@@ -150,9 +161,20 @@
             </div>
 
             <!-- Floating Panels -->
+            <div id="settingsPanel" class="absolute top-0 right-0 w-full max-w-sm h-full bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 ease-in-out z-20 overflow-y-auto">
+                 <button id="closeSettingsBtn" class="absolute top-3 right-4 text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+                 <h3 class="text-lg font-semibold text-gray-700 mb-6 text-center">Cài đặt</h3>
+                 <div class="flex items-center justify-between">
+                     <label for="autoSpeakToggle" class="text-gray-700">Tự động đọc bản dịch</label>
+                     <label class="switch">
+                         <input type="checkbox" id="autoSpeakToggle">
+                         <span class="slider"></span>
+                     </label>
+                 </div>
+            </div>
+
             <div id="authPanel" class="absolute top-0 right-0 w-full max-w-sm h-full bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 ease-in-out z-20">
-                 <!-- Auth content goes here -->
-                 <button id="closeAuthBtn" class="absolute top-2 right-2 text-gray-500 hover:text-gray-800">&times;</button>
+                 <button id="closeAuthBtn" class="absolute top-3 right-4 text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
                  <h3 class="text-lg font-semibold text-gray-700 mb-4 text-center">Tài Khoản</h3>
                  <div id="authForm" style="display: block;">
                     <input type="email" id="emailInput" class="w-full px-3 py-2 border rounded-md mb-2" placeholder="Email" autocomplete="email">
@@ -170,7 +192,7 @@
             </div>
 
              <div id="historyPanel" class="absolute top-0 right-0 w-full max-w-sm h-full bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 ease-in-out z-20 overflow-y-auto">
-                 <button id="closeHistoryBtn" class="absolute top-2 right-2 text-gray-500 hover:text-gray-800">&times;</button>
+                 <button id="closeHistoryBtn" class="absolute top-3 right-4 text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
                  <h3 class="text-lg font-semibold text-gray-700 mb-4 text-center">Lịch Sử Dịch</h3>
                  <div id="translationHistory" class="space-y-3"></div>
              </div>
@@ -222,6 +244,12 @@
         const swapLangButton = document.getElementById('swapLangButton');
         const permissionOverlay = document.getElementById('permission-overlay');
         
+        // Settings Panel Elements
+        const settingsToggleBtn = document.getElementById('settingsToggleBtn');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+        const autoSpeakToggle = document.getElementById('autoSpeakToggle');
+
         // Auth Panel Elements
         const authToggleBtn = document.getElementById('authToggleBtn');
         const authPanel = document.getElementById('authPanel');
@@ -275,6 +303,7 @@
         let isRecording = false;
         let finalTranscript = '';
         let unsubscribeHistory = null;
+        let isAutoSpeakEnabled = false;
         
         const languageMap = {
             "en-US": { name: "English", ttsName: "en-US", geminiName: "English" },
@@ -356,7 +385,6 @@
                         return;
                     case 'not-allowed':
                     case 'service-not-allowed':
-                        // FIX: Show a persistent overlay and disable the mic button.
                         permissionOverlay.style.display = 'flex';
                         micButton.disabled = true;
                         micButton.classList.add('bg-gray-400', 'cursor-not-allowed');
@@ -411,6 +439,11 @@
 
                 translatedText = translatedText.trim();
                 
+                // Auto-speak if enabled
+                if (isAutoSpeakEnabled && translatedText) {
+                    speakText(translatedText, targetLangSelect.value);
+                }
+
                 // Auto-save if logged in
                 if (auth.currentUser && text && translatedText) {
                     saveToHistory(text, translatedText, sourceLangSelect.value, targetLangSelect.value);
@@ -444,6 +477,8 @@
 
         function speakText(text, langCode) {
             if (!text || !langCode) return;
+            // Cancel any previous speech
+            speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = languageMap[langCode]?.ttsName || langCode;
             speechSynthesis.speak(utterance);
@@ -456,14 +491,24 @@
         micButton.addEventListener('touchend', (e) => { e.preventDefault(); if (isRecording) recognition.stop(); });
 
         swapLangButton.addEventListener('click', () => {
-            const sourceVal = sourceLangSelect.value;
-            sourceLangSelect.value = targetLangSelect.options[0].value === 'en' ? 'en-US' : 'vi-VN';
-            targetLangSelect.value = sourceVal === 'en-US' ? 'en' : 'vi';
-            recognition.lang = sourceLangSelect.value;
+            const currentSource = sourceLangSelect.value;
+            const currentTarget = targetLangSelect.value;
+
+            sourceLangSelect.value = (currentTarget === 'en') ? 'en-US' : 'vi-VN';
+            targetLangSelect.value = (currentSource === 'en-US') ? 'en' : 'vi';
+            
+            if (recognition) {
+                recognition.lang = sourceLangSelect.value;
+            }
+            
             showUIMessage("Đã đảo chiều ngôn ngữ", 2000);
         });
 
-        sourceLangSelect.addEventListener('change', () => { recognition.lang = sourceLangSelect.value; });
+        sourceLangSelect.addEventListener('change', () => { 
+            if (recognition) {
+                recognition.lang = sourceLangSelect.value;
+            }
+        });
 
         conversationView.addEventListener('click', (e) => {
             const ttsButton = e.target.closest('.tts-button');
@@ -487,21 +532,38 @@
         });
 
         // Panel Toggles
+        function closeAllPanels() {
+            settingsPanel.classList.add('translate-x-full');
+            authPanel.classList.add('translate-x-full');
+            historyPanel.classList.add('translate-x-full');
+        }
+
+        settingsToggleBtn.addEventListener('click', () => {
+            const isHidden = settingsPanel.classList.contains('translate-x-full');
+            closeAllPanels();
+            if (isHidden) settingsPanel.classList.remove('translate-x-full');
+        });
         authToggleBtn.addEventListener('click', () => {
-             historyPanel.classList.add('translate-x-full');
-             authPanel.classList.toggle('translate-x-full');
+            const isHidden = authPanel.classList.contains('translate-x-full');
+            closeAllPanels();
+            if (isHidden) authPanel.classList.remove('translate-x-full');
         });
         historyToggleBtn.addEventListener('click', () => {
-             authPanel.classList.add('translate-x-full');
-             historyPanel.classList.toggle('translate-x-full');
+            const isHidden = historyPanel.classList.contains('translate-x-full');
+            closeAllPanels();
+            if (isHidden) historyPanel.classList.remove('translate-x-full');
         });
+        
+        closeSettingsBtn.addEventListener('click', () => settingsPanel.classList.add('translate-x-full'));
         closeAuthBtn.addEventListener('click', () => authPanel.classList.add('translate-x-full'));
         closeHistoryBtn.addEventListener('click', () => historyPanel.classList.add('translate-x-full'));
+        
+        // Settings Logic
+        autoSpeakToggle.addEventListener('change', (e) => {
+            isAutoSpeakEnabled = e.target.checked;
+        });
 
         // Auth Logic
-        registerButton.addEventListener('click', async () => { /* ... (same as original) ... */ });
-        loginButton.addEventListener('click', async () => { /* ... (same as original) ... */ });
-        logoutButton.addEventListener('click', async () => { /* ... (same as original) ... */ });
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 authForm.style.display = 'none';
@@ -518,7 +580,7 @@
                 if (unsubscribeHistory) unsubscribeHistory();
             }
         });
-        // --- Copy-pasted Auth functions for brevity ---
+        
         registerButton.addEventListener('click', async () => {
             const email = emailInput.value;
             const password = passwordInput.value;
